@@ -20,7 +20,15 @@
     "local:catalog:run": "uv run --directory Middleware/data-catalog --with fastapi --with 'uvicorn[standard]' --with sqlalchemy --with 'psycopg[binary]' --with pydantic-settings --with-editable . uvicorn data_catalog.app:app --port 9001 --reload",
     "local:stack:up": "CICD/Local/stack-up.sh",
     "local:stack:down": "CICD/Local/stack-down.sh",
-    "local:ui:run-mock": "npm start --prefix Portals/Admin -- --configuration mock --port 9003"
+    "local:ui:run-mock": "npm start --prefix Portals/Admin -- --configuration mock --port 9003",
+    "local:db:up": "CICD/Local/docker-all-up.sh Postgres",
+    "local:db:migrate": "CICD/Local/db-migrate.sh",
+    "local:db:restart": "docker restart akg-postgres && npm run local:db:migrate",
+    "local:services:start": "CICD/Local/stack-up.sh",
+    "local:services:stop": "CICD/Local/stack-down.sh",
+    "local:start-all": "npm run local:services:start && npm run local:ui:start-all",
+    "local:stop-all": "npm run local:ui:stop-all && npm run local:services:stop",
+    "local:restart-all": "npm run local:stop-all; npm run local:start-all"
   },
   "engines": {
     "node": ">=20"

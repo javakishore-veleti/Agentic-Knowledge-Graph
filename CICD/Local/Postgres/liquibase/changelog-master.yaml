@@ -1,0 +1,52 @@
+# Liquibase master changelog (ADR-020).
+#
+# Each file is a changeset applied exactly once and recorded in DATABASECHANGELOG,
+# with a checksum. Editing an applied changeset is then a loud failure rather than a
+# silent divergence between what the file says and what the database contains --
+# which is the whole reason to use a migration tool instead of re-running .sql files.
+#
+# Changesets are additive: to change something, add a new file rather than editing an
+# applied one.
+databaseChangeLog:
+  - include:
+      file: changesets/001-extensions.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/002-workflow-tables.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/003-data-catalog.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/004-workflow-master.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/005-dataset-endpoints.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/006-dataset-sync.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/007-workflow-engines.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/008-endpoint-env-config.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/009-endpoint-auth-modes.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/010-system-endpoints.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/011-endpoint-provider-model.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/012-purposes.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/013-endpoint-defaults.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changesets/014-bootstrap.sql
+      relativeToChangelogFile: true
