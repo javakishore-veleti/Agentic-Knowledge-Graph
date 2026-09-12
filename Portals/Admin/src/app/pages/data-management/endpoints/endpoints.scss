@@ -1,0 +1,19 @@
+.group-head { border-bottom: 1px solid var(--line); }
+.group-head h2 { font-size: .9375rem; }
+.cell-title { font-weight: 600; }
+.opt {
+  display: inline-block; font-size: .6875rem;
+  background: var(--surface-sunken); border: 1px solid var(--line);
+  padding: .0625rem .375rem; border-radius: var(--radius-sm); margin-right: .25rem;
+}
+.notice {
+  padding: .625rem .75rem; border-radius: var(--radius-sm);
+  background: var(--brand-050); border: 1px solid var(--brand-100);
+  font-size: .8125rem; color: var(--ink-700);
+}
+.pill {
+  height: 28px; padding: 0 .75rem; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: var(--surface);
+  color: var(--ink-700); font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+}
+.pill-on { background: var(--brand-600); border-color: var(--brand-600); color: #fff; }

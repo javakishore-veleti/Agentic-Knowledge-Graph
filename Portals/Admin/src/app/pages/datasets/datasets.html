@@ -3,49 +3,34 @@
     <div>
       <h1>DataSets</h1>
       <p class="muted tiny">
-        Corpus versions whose ingestion completed. A set is promotable only when both the
-        alignment assert and the independent source recount pass.
+        Source data at a version, immutable once acquired — a new version is a new row.
+        Counts, validations and state describe the produced artifact and live on the
+        <strong>MIO</strong>, not here.
       </p>
     </div>
     <div class="row">
-      <input type="search" placeholder="Search name, version, domain…"
-             (input)="onQuery($event)" style="width: 260px" />
-      <button class="btn btn-primary">Onboard corpus</button>
+      <input type="search" placeholder="Search name, code, version…" (input)="onQuery($event)"
+             style="width: 250px" />
+      <select (change)="setDomain($event)" style="width: 170px">
+        <option value="">All domains</option>
+        @for (d of domains(); track d.domain_id) {
+          <option [value]="d.code">{{ d.name }}</option>
+        }
+      </select>
     </div>
   </div>
 
-  <div class="grid-metrics">
-    <div class="card card-pad metric">
-      <span class="metric-label">Datasets</span>
-      <span class="metric-value">{{ totals().sets }}</span>
-      <span class="metric-foot">{{ totals().live }} live</span>
-    </div>
-    <div class="card card-pad metric">
-      <span class="metric-label">Documents</span>
-      <span class="metric-value">{{ totals().documents | number }}</span>
-      <span class="metric-foot">across all sets</span>
-    </div>
-    <div class="card card-pad metric">
-      <span class="metric-label">Edges</span>
-      <span class="metric-value">{{ totals().edges | number }}</span>
-      <span class="metric-foot">zero model calls to build</span>
-    </div>
-    <div class="card card-pad metric" [class.metric-alert]="totals().unverified > 0">
-      <span class="metric-label">Unverified</span>
-      <span class="metric-value">{{ totals().unverified }}</span>
-      <span class="metric-foot">failed assert or recount</span>
-    </div>
-  </div>
+  @if (error(); as e) { <div class="alert">{{ e }}</div> }
 
   <div class="card">
-    <div class="card-pad row-between filters">
+    <div class="card-pad filters row-between">
       <div class="row">
-        @for (f of ['all', 'live', 'ready', 'building', 'rejected']; track f) {
-          <button class="pill" [class.pill-on]="filter() === f"
-                  (click)="setFilter($any(f))">{{ f }}</button>
-        }
+        <button class="pill" [class.pill-on]="adapter() === 'pubmed'"
+                (click)="setAdapter('pubmed')">Edge-bearing</button>
+        <button class="pill" [class.pill-on]="adapter() === 'generic-extraction'"
+                (click)="setAdapter('generic-extraction')">Needs extraction</button>
       </div>
-      <span class="muted tiny">{{ rows().length }} shown</span>
+      <span class="muted tiny">{{ grouped().length }} dataset(s), {{ total() }} version(s)</span>
     </div>
 
     <div class="table-wrap">
@@ -55,98 +40,54 @@
             <th>Dataset</th>
             <th>Domain</th>
             <th>Source version</th>
-            <th class="num">Documents</th>
-            <th class="num">Edges</th>
-            <th class="num">Embedded</th>
-            <th>Artifacts</th>
-            <th>Validation</th>
-            <th class="num">Size</th>
-            <th>State</th>
+            <th>Adapter</th>
+            <th>Acquired</th>
           </tr>
         </thead>
         <tbody>
-          @for (d of rows(); track d.dataset_id) {
-            <tr>
-              <td>
-                <div class="cell-title">{{ d.name }}</div>
-                <div class="mono">{{ d.dataset_id }}</div>
-              </td>
-              <td>
-                {{ d.domain }}
-                <div class="muted tiny">{{ d.sub_domain }}</div>
-              </td>
-              <td>
-                <div class="mono">{{ d.source_version }}</div>
-                <div class="muted tiny">ontology {{ d.ontology_version }}</div>
-              </td>
-              <td class="num">{{ d.documents | number }}</td>
-              <td class="num">{{ d.edges | number }}</td>
-              <td class="num">{{ d.embedded | number }}</td>
-              <td>
-                <div class="mono">graph {{ d.graph_version }}</div>
-                <div class="mono">index {{ d.index_version }}</div>
-              </td>
-              <td>
-                <div class="row" style="gap: .375rem">
-                  <span [class]="d.alignment_assert ? 'chip chip-ok' : 'chip chip-fail'"
-                        [title]="d.alignment_assert ? 'alignment assert passed' : 'alignment assert FAILED'">
-                    {{ d.alignment_assert ? '✓' : '✕' }} align
-                  </span>
-                  <span [class]="d.source_recount ? 'chip chip-ok' : 'chip chip-fail'"
-                        [title]="d.source_recount ? 'source recount passed' : 'source recount FAILED'">
-                    {{ d.source_recount ? '✓' : '✕' }} recount
-                  </span>
-                </div>
-              </td>
-              <td class="num">{{ d.size_gb | number: '1.1-1' }} GB</td>
-              <td><span [class]="stateChip(d.state)">{{ d.state }}</span></td>
-            </tr>
-          } @empty {
-            <tr><td colspan="10" class="empty">No datasets match this filter.</td></tr>
+          @if (loading()) {
+            <tr><td colspan="5" class="empty muted">Loading…</td></tr>
+          } @else {
+            @for (versions of grouped(); track versions[0].dataset_id) {
+              @for (d of versions; track d.dataset_id; let first = $first) {
+                <tr [class.version-row]="!first">
+                  <td>
+                    @if (first) {
+                      <div class="cell-title">{{ d.name }}</div>
+                      <div class="mono">{{ d.code }}</div>
+                      @if (d.description) {
+                        <div class="muted tiny desc">{{ d.description }}</div>
+                      }
+                    } @else {
+                      <span class="version-mark">↳ earlier version</span>
+                    }
+                  </td>
+                  <td>
+                    @if (first) {
+                      {{ d.sub_domain || '—' }}
+                    }
+                  </td>
+                  <td class="mono">{{ d.source_version }}</td>
+                  <td>
+                    @if (shipsEdges(d)) {
+                      <span class="chip chip-ok">{{ d.adapter }}</span>
+                      <div class="muted tiny">edges shipped · 0 model calls</div>
+                    } @else {
+                      <span class="chip chip-warn">{{ d.adapter }}</span>
+                      <div class="muted tiny">extraction cost reported separately</div>
+                    }
+                  </td>
+                  <td class="tiny muted">{{ d.created_at | date: 'short' }}</td>
+                </tr>
+              }
+            } @empty {
+              <tr><td colspan="5" class="empty muted">No datasets match this filter.</td></tr>
+            }
           }
         </tbody>
       </table>
     </div>
-  </div>
-
-  <div class="lower">
-    <div class="card card-pad">
-      <span class="metric-label">Promotion readiness</span>
-      <p class="muted tiny" style="margin-top: .25rem">
-        A set is promotable only when both checks pass. Colour is not the signal; the
-        glyph is.
-      </p>
-      @for (d of all(); track d.dataset_id) {
-        <div class="ready-row">
-          <span class="ready-name">{{ d.name }}</span>
-          @if (d.alignment_assert && d.source_recount) {
-            <span class="chip chip-ok">✓ promotable</span>
-          } @else {
-            <span class="chip chip-fail">
-              ✕ {{ !d.alignment_assert && !d.source_recount ? 'both checks failed'
-                   : !d.alignment_assert ? 'alignment failed' : 'recount failed' }}
-            </span>
-          }
-        </div>
-      }
-    </div>
-
-    <div class="card card-pad">
-      <span class="metric-label">Edge provenance</span>
-      <p class="muted tiny" style="margin-top: .25rem">
-        Where each set's relationships came from. Publisher-supplied structure costs
-        nothing to trust; extracted edges have to earn it.
-      </p>
-      @for (d of all(); track d.dataset_id) {
-        <div class="ready-row">
-          <span class="ready-name">{{ d.name }}</span>
-          @if (d.edges > 0) {
-            <span class="chip chip-run">{{ d.edges | number }} edges · 0 model calls</span>
-          } @else {
-            <span class="chip chip-warn">no edges — extraction adapter required</span>
-          }
-        </div>
-      }
-    </div>
+    <app-pager [shown]="rows().length" [total]="total()" [nextCursor]="nextCursor()"
+               [canPrev]="canPrev()" (next)="next()" (prev)="prev()" />
   </div>
 </div>

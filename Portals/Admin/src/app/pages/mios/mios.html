@@ -1,0 +1,431 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>MIOs</h1>
+      <p class="muted tiny">
+        Managed Informational Objects — the produced artifacts. Each is built from one or
+        more datasets, owns the workflows that maintain it, and can generate further MIOs.
+      </p>
+    </div>
+    <div class="row">
+      <input type="search" placeholder="Search name or code…" (input)="onQuery($event)"
+             style="width: 230px" />
+      <select (change)="setDomain($event)" style="width: 160px">
+        <option value="">All domains</option>
+        @for (d of domains(); track d.domain_id) {
+          <option [value]="d.code">{{ d.name }}</option>
+        }
+      </select>
+      <button class="btn btn-primary" (click)="startCreate()">New MIO</button>
+    </div>
+  </div>
+
+  @if (error(); as e) { <div class="alert">{{ e }}</div> }
+  @if (notice(); as n) { <div class="alert alert-bad">{{ n }}</div> }
+
+  <div class="grid-metrics">
+    <div class="card card-pad metric">
+      <span class="metric-label">Live</span>
+      <span class="metric-value">{{ summary().live }}</span>
+      <span class="metric-foot">serving queries</span>
+    </div>
+    <div class="card card-pad metric" [class.metric-alert]="summary().unvalidated > 0">
+      <span class="metric-label">Unvalidated</span>
+      <span class="metric-value">{{ summary().unvalidated }}</span>
+      <span class="metric-foot">not promotable</span>
+    </div>
+    <div class="card card-pad metric">
+      <span class="metric-label">Documents</span>
+      <span class="metric-value">{{ summary().documents | number }}</span>
+      <span class="metric-foot">across shown MIOs</span>
+    </div>
+    <div class="card card-pad metric">
+      <span class="metric-label">Edges</span>
+      <span class="metric-value">{{ summary().edges | number }}</span>
+      <span class="metric-foot">zero model calls to build</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-pad filters row-between">
+      <div class="row">
+        @for (s of states; track s) {
+          <button class="pill" [class.pill-on]="state() === s" (click)="setState(s)">{{ s }}</button>
+        }
+        <button class="pill" [class.pill-on]="cdcOnly()" (click)="toggleCdc()">has CDC</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>MIO</th>
+            <th>Domain</th>
+            <th>Technology</th>
+            <th class="num">Documents</th>
+            <th class="num">Edges</th>
+            <th class="num">Size</th>
+            <th>Validations</th>
+            <th>Built from</th>
+            <th>Instances</th>
+            <th>State</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="11" class="empty muted">Loading…</td></tr>
+          } @else {
+            @for (m of rows(); track m.mio_id) {
+              <tr class="clickable" (click)="open(m)">
+                <td>
+                  <div class="cell-title">{{ m.name }}</div>
+                  <div class="mono">{{ m.code }}</div>
+                </td>
+                <td class="mono">{{ m.domain_code }}</td>
+                <td><span class="chip chip-neutral">{{ techLabel(m.tech_stack) }}</span></td>
+                <td class="num">{{ m.documents_count | number }}</td>
+                <td class="num">{{ m.edges_count ? (m.edges_count | number) : '—' }}</td>
+                <td class="num">{{ humanBytes(m.size_bytes) }}</td>
+                <td>
+                  @if (m.validations_pass) {
+                    <span class="chip chip-ok">✓ pass</span>
+                  } @else if (!validationEntries(m).length) {
+                    <span class="chip chip-warn">✕ nothing checked</span>
+                  } @else {
+                    <span class="chip chip-fail">✕ failing</span>
+                  }
+                </td>
+                <td class="num">{{ m.dataset_count }}</td>
+                <td>
+                  {{ m.instance_count }}
+                  @if (m.has_cdc) { <span class="chip chip-run">CDC</span> }
+                </td>
+                <td>
+                  <span [class]="mioStateChip(m.state)">{{ m.state }}</span>
+                  @if (m.pinned_version) {
+                    <div class="mono tiny">{{ m.pinned_version }}</div>
+                  }
+                </td>
+                <td>
+                  @if (m.generated_mio_count) {
+                    <span class="chip chip-run" [title]="'generated ' + m.generated_mio_count + ' MIO(s)'">
+                      →{{ m.generated_mio_count }}
+                    </span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="11" class="empty muted">No MIOs match this filter.</td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pager [shown]="rows().length" [total]="total()" [nextCursor]="nextCursor()"
+               [canPrev]="canPrev()" (next)="next()" (prev)="prev()" />
+  </div>
+</div>
+
+<!-- ============================================ create / edit -->
+@if (creating() || editing()) {
+  <div class="drawer-scrim" (click)="cancelForm()"></div>
+  <aside class="drawer drawer-narrow" role="dialog">
+    <header class="drawer-head">
+      <h2>{{ creating() ? 'New MIO' : 'Edit ' + editing()!.code }}</h2>
+      <button class="btn btn-secondary" (click)="cancelForm()">Close</button>
+    </header>
+    <div class="drawer-body stack">
+      @if (creating()) {
+        <label class="field"><span>Domain</span>
+          <select (change)="setField('domain_code', $event)">
+            @for (d of domains(); track d.domain_id) {
+              <option [value]="d.code">{{ d.name }}</option>
+            }
+          </select>
+        </label>
+        <label class="field"><span>Code <em class="req">required</em></span>
+          <input type="text" placeholder="pubmed-csr-graph" (input)="setField('code', $event)" />
+        </label>
+      }
+      <label class="field"><span>Name <em class="req">required</em></span>
+        <input type="text" [value]="form()['name'] || ''" (input)="setField('name', $event)" />
+      </label>
+      <label class="field"><span>Technology</span>
+        <select (change)="setField('tech_stack', $event)">
+          @for (t of techStacks; track t) {
+            <option [value]="t" [selected]="form()['tech_stack'] === t">{{ techLabel(t) }}</option>
+          }
+        </select>
+      </label>
+      @if (editing()) {
+        <label class="field"><span>State</span>
+          <select (change)="setField('state', $event)">
+            @for (s of states; track s) {
+              <option [value]="s" [selected]="form()['state'] === s">{{ s }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span>Pinned artifact version</span>
+          <input type="text" [value]="form()['pinned_version'] || ''"
+                 (input)="setField('pinned_version', $event)" placeholder="2026.09.12-a3f9c1" />
+          <span class="help tiny muted">
+            A live MIO must name the version being served, and its validations must pass.
+            The service refuses the promotion otherwise.
+          </span>
+        </label>
+      }
+    </div>
+    <footer class="drawer-foot">
+      <div class="spacer"></div>
+      <button class="btn btn-secondary" (click)="cancelForm()">Cancel</button>
+      <button class="btn btn-primary" (click)="saveForm()">
+        {{ creating() ? 'Create' : 'Save' }}
+      </button>
+    </footer>
+  </aside>
+}
+
+<!-- ============================================ detail -->
+@if (selected(); as m) {
+  <div class="drawer-scrim" (click)="closeDrawer()"></div>
+  <aside class="drawer" role="dialog" [attr.aria-label]="m.name">
+    <header class="drawer-head">
+      <div>
+        <h2>{{ m.name }}</h2>
+        <p class="muted tiny mono">{{ m.domain_code }} / {{ m.code }}</p>
+      </div>
+      <div class="row">
+        <button class="btn btn-secondary" (click)="startEdit(m)">Edit</button>
+        <button class="btn btn-secondary" (click)="closeDrawer()">Close</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      @for (t of ['overview', 'instances', 'workflows', 'lineage']; track t) {
+        <button class="tab" [class.tab-on]="tab() === t" (click)="tab.set($any(t))">
+          {{ t }}
+          @if (t === 'workflows' && attached().length) { <span class="tab-n">{{ attached().length }}</span> }
+          @if (t === 'instances' && instances().length) { <span class="tab-n">{{ instances().length }}</span> }
+        </button>
+      }
+    </nav>
+
+    <div class="drawer-body stack">
+      @switch (tab()) {
+        @case ('overview') {
+          <div class="kv">
+            <div><span class="metric-label">State</span>
+                 <span [class]="mioStateChip(m.state)">{{ m.state }}</span></div>
+            <div><span class="metric-label">Technology</span>
+                 <span class="mono">{{ techLabel(m.tech_stack) }}</span></div>
+            <div><span class="metric-label">Pinned</span>
+                 <span class="mono">{{ m.pinned_version || '—' }}</span></div>
+            <div><span class="metric-label">Documents</span>
+                 <span class="mono">{{ m.documents_count | number }}</span></div>
+            <div><span class="metric-label">Edges</span>
+                 <span class="mono">{{ m.edges_count | number }}</span></div>
+            <div><span class="metric-label">Size</span>
+                 <span class="mono">{{ humanBytes(m.size_bytes) }}</span></div>
+          </div>
+
+          <div>
+            <span class="metric-label">Validations</span>
+            @if (validationEntries(m).length) {
+              <div class="row" style="gap: .375rem; margin-top: .5rem; flex-wrap: wrap">
+                @for (v of validationEntries(m); track v.key) {
+                  <span [class]="v.ok ? 'chip chip-ok' : 'chip chip-fail'">
+                    {{ v.ok ? '✓' : '✕' }} {{ v.key }}
+                  </span>
+                }
+              </div>
+            } @else {
+              <p class="muted tiny" style="margin-top: .375rem">
+                Nothing has checked this artifact. That is not a pass: it cannot be promoted.
+              </p>
+            }
+          </div>
+
+          <div class="danger-zone">
+            <div>
+              <strong class="tiny">Delete this MIO</strong>
+              <p class="muted tiny">
+                Refused while data instances still reference it.
+              </p>
+            </div>
+            <button class="btn btn-danger" (click)="remove(m)">Delete</button>
+          </div>
+        }
+
+        @case ('instances') {
+          @if (cdcInstanceId()) {
+            <div class="notice">
+              One CDC instance, enforced by the schema. Change capture is a continuous
+              stream, so a MIO gets exactly one rather than one row per change.
+            </div>
+          }
+          @for (i of instances(); track i.data_instance_id) {
+            <div class="card card-pad inst">
+              <div class="row-between">
+                <div>
+                  <strong>{{ i.label }}</strong>
+                  <div class="muted tiny">{{ i.description || '—' }}</div>
+                </div>
+                <div class="row">
+                  <span [class]="instanceKindChip(i.kind)">{{ i.kind }}</span>
+                  <span class="chip chip-neutral">{{ i.state }}</span>
+                </div>
+              </div>
+              @if (i.stream_cursor) {
+                <div class="mono tiny" style="margin-top: .5rem">
+                  cursor {{ i.stream_cursor }} — a restart resumes here rather than replaying
+                </div>
+              }
+            </div>
+          } @empty {
+            <p class="muted tiny">No data instances yet.</p>
+          }
+        }
+
+        @case ('workflows') {
+          <div class="row-between">
+            <span class="metric-label">Attached workflows</span>
+            <select (change)="attach($event)" style="width: 220px">
+              <option value="">Attach a workflow…</option>
+              @for (w of attachable(); track w.workflow_id) {
+                <option [value]="w.workflow_id">{{ w.name }}</option>
+              }
+            </select>
+          </div>
+
+          @for (w of attached(); track w.workflow_code) {
+            <div class="card card-pad wf">
+              <div class="row-between">
+                <div>
+                  <strong>{{ w.workflow_name || w.workflow_code }}</strong>
+                  <div class="mono tiny">{{ w.workflow_code }} · {{ w.purpose }}</div>
+                </div>
+                <div class="row">
+                  @if (w.default_tech_stack) {
+                    <span class="chip chip-neutral">{{ w.default_tech_stack }}</span>
+                  }
+                  @if (!w.workflow_active) {
+                    <span class="chip chip-fail">inactive</span>
+                  }
+                </div>
+              </div>
+              @if (w.description) { <p class="muted tiny">{{ w.description }}</p> }
+              <div class="row-between wf-foot">
+                <button class="btn btn-secondary" (click)="detach(w)">Detach</button>
+                <button class="btn btn-primary" [disabled]="!w.workflow_active"
+                        (click)="startInvoke(w)">Invoke…</button>
+              </div>
+            </div>
+          } @empty {
+            <p class="muted tiny">
+              No workflows attached. A workflow must be attached before it can be invoked
+              against this MIO.
+            </p>
+          }
+
+          @if (invoking(); as w) {
+            <div class="card card-pad invoke">
+              <div class="row-between">
+                <strong>Invoke {{ w.workflow_name || w.workflow_code }}</strong>
+                <button class="btn btn-secondary" (click)="invoking.set(null)">Cancel</button>
+              </div>
+              <p class="muted tiny">
+                Runs on <strong>{{ w.default_tech_stack }}</strong>, resolved from
+                configuration — the portal cannot choose the engine.
+              </p>
+              @for (p of w.params_json; track p.name) {
+                <label class="field">
+                  <span>{{ p.label }} @if (p.required) { <em class="req">required</em> }</span>
+                  @switch (p.kind) {
+                    @case ('select') {
+                      <select (change)="setParam(p.name, $event)">
+                        @for (o of p.options || []; track o) {
+                          <option [value]="o" [selected]="invokeValues()[p.name] === o">{{ o }}</option>
+                        }
+                      </select>
+                    }
+                    @case ('bool') {
+                      <span class="check">
+                        <input type="checkbox" [checked]="!!invokeValues()[p.name]"
+                               (change)="setParam(p.name, $event)" /> <span class="tiny">enabled</span>
+                      </span>
+                    }
+                    @case ('date') {
+                      <input type="date" [value]="$any(invokeValues()[p.name]) || ''"
+                             (input)="setParam(p.name, $event)" />
+                    }
+                    @default {
+                      <input type="text" [value]="$any(invokeValues()[p.name]) || ''"
+                             (input)="setParam(p.name, $event)" />
+                    }
+                  }
+                  @if (p.help) { <span class="help tiny muted">{{ p.help }}</span> }
+                </label>
+              }
+              @if (invokeResult(); as r) {
+                <div class="ok-banner"><strong>{{ r }}</strong></div>
+              } @else {
+                <div class="row-between" style="margin-top: .75rem">
+                  @if (missingParams().length) {
+                    <span class="tiny" style="color: var(--amber-700)">
+                      Missing: {{ missingParams().join(', ') }}
+                    </span>
+                  } @else { <span></span> }
+                  <button class="btn btn-primary" [disabled]="missingParams().length > 0"
+                          (click)="runInvoke()">Run workflow</button>
+                </div>
+              }
+            </div>
+          }
+        }
+
+        @case ('lineage') {
+          @if (lineage(); as l) {
+            <div>
+              <span class="metric-label">Produced from</span>
+              @for (p of l.produced_from; track p.mio_id) {
+                <div class="lin">
+                  <span class="lin-arrow">↑</span>
+                  <div>
+                    <strong>{{ p.name }}</strong>
+                    <div class="mono tiny">{{ p.code }}</div>
+                    @if (p.data_instance_exec_id) {
+                      <div class="mono tiny">by exec {{ p.data_instance_exec_id }}</div>
+                    }
+                  </div>
+                </div>
+              } @empty {
+                <p class="muted tiny">Built directly from datasets, not from another MIO.</p>
+              }
+            </div>
+            <div>
+              <span class="metric-label">Generated</span>
+              @for (g of l.generated; track g.mio_id) {
+                <div class="lin">
+                  <span class="lin-arrow lin-down">↓</span>
+                  <div>
+                    <strong>{{ g.name }}</strong>
+                    <div class="mono tiny">{{ g.code }}</div>
+                  </div>
+                </div>
+              } @empty {
+                <p class="muted tiny">This MIO has not produced another.</p>
+              }
+            </div>
+          }
+        }
+      }
+    </div>
+
+    <footer class="drawer-foot">
+      <span class="muted tiny">updated {{ m.updated_at | date: 'short' }}</span>
+    </footer>
+  </aside>
+}

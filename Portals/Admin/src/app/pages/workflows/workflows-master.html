@@ -1,0 +1,53 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>Workflows</h1>
+      <p class="muted tiny">
+        The master list. Attach one to a MIO to make it runnable there — a workflow can
+        only be invoked against a MIO it is attached to.
+      </p>
+    </div>
+    <div class="row">
+      <input type="search" placeholder="Search…" (input)="onQuery($event)" style="width: 220px" />
+      <button class="pill" [class.pill-on]="showInactive()"
+              (click)="showInactive.set(!showInactive())">Show inactive</button>
+    </div>
+  </div>
+
+  <div class="wf-grid">
+    @if (loading()) {
+      <p class="muted tiny">Loading…</p>
+    } @else {
+      @for (w of visible(); track w.workflow_id) {
+        <article class="card card-pad wf-card" [class.inactive]="!w.is_active">
+          <header class="row-between">
+            <h3>{{ w.name }}</h3>
+            <div class="row" style="gap: .375rem">
+              <span class="chip chip-neutral">{{ w.default_tech_stack }}</span>
+              @if (!w.is_active) { <span class="chip chip-fail">inactive</span> }
+            </div>
+          </header>
+          <p class="wf-desc">{{ w.description }}</p>
+          <div class="params">
+            <span class="metric-label">Parameters</span>
+            @for (p of w.params_json; track p.name) {
+              <div class="param">
+                <span class="mono">{{ p.name }}</span>
+                <span class="muted tiny">{{ p.kind }}</span>
+                @if (p.required) { <span class="chip chip-warn">required</span> }
+              </div>
+            } @empty {
+              <span class="muted tiny">none</span>
+            }
+          </div>
+          <footer class="row-between wf-foot">
+            <span class="mono tiny">{{ w.domain }} / {{ w.sub_domain }}</span>
+            <span class="chip chip-neutral">{{ w.purpose }}</span>
+          </footer>
+        </article>
+      } @empty {
+        <p class="muted tiny">No workflows.</p>
+      }
+    }
+  </div>
+</div>

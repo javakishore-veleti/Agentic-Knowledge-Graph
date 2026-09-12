@@ -1,0 +1,49 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>Domains</h1>
+      <p class="muted tiny">
+        The top of the catalog. A domain holds datasets, and the MIOs built from them.
+      </p>
+    </div>
+    <input type="search" placeholder="Search code or name…" (input)="onQuery($event)"
+           style="width: 260px" />
+  </div>
+
+  @if (error(); as e) {
+    <div class="alert">{{ e }}</div>
+  }
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="4" class="empty muted">Loading…</td></tr>
+          } @else {
+            @for (d of rows(); track d.domain_id) {
+              <tr>
+                <td class="mono" style="font-weight: 600">{{ d.code }}</td>
+                <td>{{ d.name }}</td>
+                <td class="muted">{{ d.description || '—' }}</td>
+                <td class="tiny muted">{{ d.created_at | date: 'medium' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="empty muted">No domains.</td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-pager [shown]="rows().length" [total]="total()" [nextCursor]="nextCursor()"
+               [canPrev]="canPrev()" (next)="next()" (prev)="prev()" />
+  </div>
+</div>

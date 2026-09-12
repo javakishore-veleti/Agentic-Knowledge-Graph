@@ -19,6 +19,7 @@ export class DataManagement {
     { path: 'workflows', label: 'Workflows', hint: 'Trigger and schedule' },
     { path: 'batches', label: 'Batches', hint: 'One row per batch instance' },
     { path: 'executions', label: 'Executions', hint: 'wf_exec_log detail' },
+    { path: 'endpoints', label: 'Endpoints', hint: 'Where each technology lives' },
     { path: 'sources', label: 'Sources', hint: 'Registry and adapters', planned: true },
     { path: 'ontology', label: 'Ontology', hint: 'Aliases and blocked words', planned: true },
     { path: 'freshness', label: 'Freshness', hint: 'Deltas and retractions', planned: true },

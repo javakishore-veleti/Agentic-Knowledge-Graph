@@ -1,0 +1,80 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>Endpoints</h1>
+      <p class="muted tiny">
+        Where each technology lives. Several endpoints may serve one technology, so nothing
+        is keyed on technology alone.
+      </p>
+    </div>
+    <div class="row">
+      @for (e of envs(); track e) {
+        <button class="pill" [class.pill-on]="env() === e" (click)="setEnv(e)">{{ e }}</button>
+      }
+    </div>
+  </div>
+
+  <div class="notice">
+    Connection details never include a credential. <span class="mono">secret_ref</span>
+    names a Key Vault entry; the secret itself is not stored in the catalog, so it cannot
+    appear on this page or in an API response.
+  </div>
+
+  @if (loading()) {
+    <p class="muted tiny">Loading…</p>
+  } @else {
+    @for (group of grouped(); track group[0]) {
+      <div class="card">
+        <div class="card-pad group-head row-between">
+          <h2>{{ techLabel(group[0]) }}</h2>
+          <span class="muted tiny">{{ group[1].length }} endpoint(s)</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Code</th><th>Environment</th><th>Host</th><th class="num">Port</th>
+                <th>Database</th><th>Options</th><th>Secret</th><th>Active</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (e of group[1]; track e.app_endpoint_id) {
+                <tr>
+                  <td>
+                    <div class="cell-title">{{ e.name }}</div>
+                    <div class="mono">{{ e.code }}</div>
+                  </td>
+                  <td><span class="chip chip-neutral">{{ e.env }}</span></td>
+                  <td class="mono">{{ e.host }}</td>
+                  <td class="num mono">{{ e.port ?? '—' }}</td>
+                  <td class="mono">{{ e.database || '—' }}</td>
+                  <td>
+                    @for (o of optionPairs(e); track o.k) {
+                      <span class="opt mono">{{ o.k }}={{ o.v }}</span>
+                    }
+                  </td>
+                  <td>
+                    @if (e.secret_ref) {
+                      <span class="mono tiny">{{ e.secret_ref }}</span>
+                    } @else {
+                      <span class="muted tiny">none needed</span>
+                    }
+                  </td>
+                  <td>
+                    @if (e.is_active) {
+                      <span class="chip chip-ok">✓ active</span>
+                    } @else {
+                      <span class="chip chip-neutral">inactive</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    } @empty {
+      <p class="muted tiny">No endpoints.</p>
+    }
+  }
+</div>

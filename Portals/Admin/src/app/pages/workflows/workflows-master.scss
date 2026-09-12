@@ -1,0 +1,18 @@
+.wf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 1rem; }
+.wf-card { display: flex; flex-direction: column; gap: .625rem; }
+.wf-card h3 { font-size: .9375rem; }
+.wf-card.inactive { opacity: .66; }
+.wf-desc { font-size: .8125rem; color: var(--ink-700); line-height: 1.5; flex: 1; }
+.wf-foot { border-top: 1px solid var(--line); padding-top: .625rem; }
+.metric-label {
+  font-size: .6875rem; font-weight: 680; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-500);
+}
+.params { display: flex; flex-direction: column; gap: .25rem; }
+.param { display: flex; align-items: center; gap: .5rem; font-size: .75rem; }
+.pill {
+  height: 28px; padding: 0 .75rem; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: var(--surface);
+  color: var(--ink-700); font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+}
+.pill-on { background: var(--brand-600); border-color: var(--brand-600); color: #fff; }

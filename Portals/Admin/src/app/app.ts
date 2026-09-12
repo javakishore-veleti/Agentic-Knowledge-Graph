@@ -22,7 +22,10 @@ export class App {
   readonly env = this.api.env;
 
   readonly nav = signal<TopNavItem[]>([
+    { path: '/domains', label: 'Domains' },
     { path: '/datasets', label: 'DataSets' },
+    { path: '/mios', label: 'MIOs' },
+    { path: '/workflows', label: 'Workflows' },
     { path: '/data-management', label: 'Data Management' },
     { path: '/traces', label: 'Traces' },
     { path: '/releases', label: 'Releases' },

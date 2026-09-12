@@ -1,11 +1,27 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'datasets', pathMatch: 'full' },
+  { path: '', redirectTo: 'mios', pathMatch: 'full' },
+  {
+    path: 'domains',
+    loadComponent: () => import('./pages/domains/domains').then((m) => m.Domains),
+    title: 'Domains · Knowledge Admin',
+  },
   {
     path: 'datasets',
     loadComponent: () => import('./pages/datasets/datasets').then((m) => m.Datasets),
     title: 'DataSets · Knowledge Admin',
+  },
+  {
+    path: 'mios',
+    loadComponent: () => import('./pages/mios/mios').then((m) => m.Mios),
+    title: 'MIOs · Knowledge Admin',
+  },
+  {
+    path: 'workflows',
+    loadComponent: () =>
+      import('./pages/workflows/workflows-master').then((m) => m.WorkflowsMaster),
+    title: 'Workflows · Knowledge Admin',
   },
   {
     path: 'data-management',
@@ -29,6 +45,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/data-management/executions/executions').then((m) => m.Executions),
       },
+      {
+        path: 'endpoints',
+        loadComponent: () =>
+          import('./pages/data-management/endpoints/endpoints').then((m) => m.Endpoints),
+      },
     ],
   },
   {
@@ -41,5 +62,5 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/releases/releases').then((m) => m.Releases),
     title: 'Releases · Knowledge Admin',
   },
-  { path: '**', redirectTo: 'datasets' },
+  { path: '**', redirectTo: 'mios' },
 ];

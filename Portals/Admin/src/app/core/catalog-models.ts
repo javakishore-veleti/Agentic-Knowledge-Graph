@@ -167,3 +167,86 @@ export function humanBytes(n: number): string {
   while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
   return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
 }
+
+/* ---- workflow master and association ---------------------------------- */
+
+export interface WorkflowParamDto {
+  name: string;
+  label: string;
+  kind: 'text' | 'date' | 'select' | 'bool' | string;
+  required: boolean;
+  default?: unknown;
+  options?: string[] | null;
+  help?: string | null;
+}
+
+export interface WorkflowDto {
+  workflow_id: string;
+  code: string;
+  name: string;
+  description: string;
+  domain: string;
+  sub_domain: string;
+  default_tech_stack: string;
+  purpose: string;
+  params_json: WorkflowParamDto[];
+  is_active: boolean;
+}
+
+export interface MioWorkflowDto {
+  workflow_id: string | null;
+  workflow_code: string;
+  workflow_name: string | null;
+  description: string | null;
+  default_tech_stack: string | null;
+  purpose: string;
+  enabled: boolean;
+  params_json: WorkflowParamDto[];
+  param_overrides_json: Record<string, unknown>;
+  /** False when the association points at a missing or deactivated workflow. The portal
+   *  must not offer a trigger for one of these. */
+  workflow_active: boolean;
+}
+
+export interface CreateMioReq {
+  domain_code: string;
+  code: string;
+  name: string;
+  description?: string;
+  tech_stack: string;
+  dataset_ids?: string[];
+}
+
+export interface UpdateMioReq {
+  mio_id: string;
+  name?: string;
+  description?: string;
+  tech_stack?: string;
+  state?: MioState;
+  pinned_version?: string | null;
+}
+
+export interface InvokeResp {
+  mio_id: string;
+  workflow_id: string;
+  data_instance_exec_id: string;
+  status: string;
+  wf_ref_id: string | null;
+}
+
+/** RFC 9457 problem body returned by the service for 4xx. */
+export interface ProblemDto {
+  title: string;
+  status: number;
+  code: string;
+  detail?: string;
+  trace_id?: string;
+}
+
+export const TECH_STACKS = [
+  'csr_graph', 'pgvector', 'opensearch', 'parquet_tables', 'blob_prefix',
+] as const;
+
+export const MIO_STATES: MioState[] = [
+  'draft', 'building', 'ready', 'live', 'rejected', 'retired',
+];
