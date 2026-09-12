@@ -1,0 +1,92 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>Batches</h1>
+      <p class="muted tiny">
+        One row per batch execution instance. Counters are a cache over
+        <span class="mono">wf_exec_log</span> and are recounted against it, so drift is a
+        bug rather than a reporting quirk.
+      </p>
+    </div>
+  </div>
+
+  <div class="grid-metrics">
+    <div class="card card-pad metric">
+      <span class="metric-label">In flight</span>
+      <span class="metric-value">{{ summary().running }}</span>
+      <span class="metric-foot">batches running</span>
+    </div>
+    <div class="card card-pad metric" [class.metric-alert]="summary().failed > 0">
+      <span class="metric-label">Failed batches</span>
+      <span class="metric-value">{{ summary().failed }}</span>
+      <span class="metric-foot">need triage</span>
+    </div>
+    <div class="card card-pad metric">
+      <span class="metric-label">Units</span>
+      <span class="metric-value">{{ summary().units | number }}</span>
+      <span class="metric-foot">executions across batches</span>
+    </div>
+    <div class="card card-pad metric" [class.metric-alert]="summary().failedUnits > 0">
+      <span class="metric-label">Failed units</span>
+      <span class="metric-value">{{ summary().failedUnits | number }}</span>
+      <span class="metric-foot">individual executions</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Batch</th>
+            <th>Instance</th>
+            <th>Engine</th>
+            <th>Progress</th>
+            <th class="num">Total</th>
+            <th class="num">Ok</th>
+            <th class="num">Failed</th>
+            <th class="num">Open</th>
+            <th>Status</th>
+            <th>Requested</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (b of rows(); track b.wf_batch_id) {
+            <tr [class.row-flag]="inconsistent(b)">
+              <td>
+                <div class="cell-title">{{ b.batch_name }}</div>
+                <div class="mono">{{ b.domain }} / {{ b.sub_domain }}</div>
+              </td>
+              <td class="mono">{{ b.batch_instance }}</td>
+              <td><span class="chip chip-neutral">{{ stackLabel(b.tech_stack) }}</span></td>
+              <td style="min-width: 150px">
+                <div class="bar" [attr.title]="b.succeeded_count + ' ok, ' + b.failed_count + ' failed'">
+                  <span class="bar-ok" [style.width.%]="pct(b, 'ok')"></span>
+                  <span class="bar-fail" [style.width.%]="pct(b, 'failed')"></span>
+                </div>
+                <div class="tiny muted">{{ pct(b, 'ok') | number: '1.0-0' }}% complete</div>
+              </td>
+              <td class="num">{{ b.total_count | number }}</td>
+              <td class="num" style="color: var(--teal-700)">{{ b.succeeded_count | number }}</td>
+              <td class="num" [style.color]="b.failed_count ? 'var(--rose-700)' : 'inherit'">
+                {{ b.failed_count | number }}
+              </td>
+              <td class="num">{{ open(b) | number }}</td>
+              <td>
+                <span [class]="statusChip(b.status)">
+                  <span class="chip-dot"></span>{{ b.status }}
+                </span>
+                @if (inconsistent(b)) {
+                  <div class="tiny" style="color: var(--amber-700)">
+                    terminal with {{ open(b) }} open
+                  </div>
+                }
+              </td>
+              <td class="tiny muted">{{ b.requested_by || '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

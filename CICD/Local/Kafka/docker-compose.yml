@@ -1,0 +1,29 @@
+# Redpanda speaks the Kafka protocol, so no Azure or AWS SDK reaches domain code (ADR-005).
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.2.8
+    container_name: akg-redpanda
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 1G
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://localhost:9092
+    ports:
+      - "${REDPANDA_KAFKA_PORT:-9092}:9092"
+      - "${REDPANDA_ADMIN_PORT:-9644}:9644"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [akg]
+
+networks:
+  akg:
+    external: true
+    name: ${AKG_NETWORK:-akg-net}

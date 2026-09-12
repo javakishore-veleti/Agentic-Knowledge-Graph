@@ -1,0 +1,27 @@
+.metric { display: flex; flex-direction: column; gap: .25rem; }
+.metric-label {
+  font-size: .6875rem; font-weight: 680; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-500);
+}
+.metric-value {
+  font-size: 1.625rem; font-weight: 660; letter-spacing: -.02em;
+  color: var(--brand-700); font-variant-numeric: tabular-nums;
+}
+.metric-foot { font-size: .75rem; color: var(--ink-500); }
+.metric-alert { border-color: var(--rose-100); background: #fffafb; }
+.metric-alert .metric-value { color: var(--rose-700); }
+
+.cell-title { font-weight: 600; }
+
+.bar {
+  display: flex;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--brand-100);
+  overflow: hidden;
+  margin-bottom: .25rem;
+}
+.bar-ok { background: var(--teal-600); }
+.bar-fail { background: var(--rose-600); }
+
+.row-flag td { background: #fffdf5 !important; }

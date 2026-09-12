@@ -1,0 +1,68 @@
+.dm { display: grid; grid-template-columns: 232px 1fr; gap: 1.5rem; align-items: start; }
+
+.sidenav {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  position: sticky;
+  top: 80px;
+}
+
+.sidenav-head {
+  padding: 1rem 1.125rem .875rem;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--brand-050), var(--surface));
+}
+.sidenav-head h2 { font-size: .9375rem; }
+
+.sidenav nav { display: flex; flex-direction: column; padding: .5rem; gap: .125rem; }
+
+.sidenav-item {
+  display: flex;
+  flex-direction: column;
+  gap: .0625rem;
+  padding: .5rem .625rem;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid transparent;
+  text-decoration: none;
+  transition: background .14s ease, border-color .14s ease;
+  position: relative;
+}
+.sidenav-item:hover { background: var(--brand-050); text-decoration: none; }
+.sidenav-item.is-active {
+  background: var(--brand-050);
+  border-left-color: var(--brand-600);
+}
+.sidenav-label { font-size: .8125rem; font-weight: 600; color: var(--ink-900); }
+.sidenav-item.is-active .sidenav-label { color: var(--brand-700); }
+.sidenav-hint { font-size: .6875rem; color: var(--ink-500); }
+
+.sidenav-item.is-planned { cursor: default; }
+.sidenav-item.is-planned:hover { background: transparent; }
+.sidenav-item.is-planned .sidenav-label { color: var(--ink-400); }
+.sidenav-item.is-planned .sidenav-hint { color: var(--ink-400); }
+.planned-tag {
+  position: absolute;
+  right: .625rem;
+  top: .625rem;
+  font-size: .5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--amber-700);
+  background: var(--amber-100);
+  padding: .0625rem .3125rem;
+  border-radius: 999px;
+}
+
+.dm-body { min-width: 0; }
+
+@media (max-width: 1000px) {
+  .dm { grid-template-columns: 1fr; }
+  .sidenav { position: static; }
+  .sidenav nav { flex-direction: row; overflow-x: auto; }
+  .sidenav-item { min-width: 150px; border-left: none; border-bottom: 2px solid transparent; }
+  .sidenav-item.is-active { border-left: none; border-bottom-color: var(--brand-600); }
+}

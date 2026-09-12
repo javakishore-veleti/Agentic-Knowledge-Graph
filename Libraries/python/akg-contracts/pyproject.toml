@@ -1,0 +1,16 @@
+[project]
+name = "akg-contracts"
+version = "0.1.0"
+description = "Single source of truth for AKG schemas, events, artifact manifests and error codes"
+requires-python = ">=3.13"
+dependencies = ["pydantic>=2.9"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/akg_contracts"]

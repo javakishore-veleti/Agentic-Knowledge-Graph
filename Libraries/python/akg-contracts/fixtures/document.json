@@ -1,0 +1,9 @@
+{
+  "doc_id": "12345678",
+  "title": "Metformin and cardiovascular outcomes in type 2 diabetes",
+  "abstract": "A cohort study of 4,201 patients followed for a median of 6.2 years.",
+  "published": "2019-04-11",
+  "retracted": false,
+  "concepts": ["D008687", "D003924", "D002318", "D006801"],
+  "major_concepts": ["D008687", "D003924"]
+}

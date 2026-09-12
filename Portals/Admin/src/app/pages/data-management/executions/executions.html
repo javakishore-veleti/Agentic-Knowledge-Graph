@@ -1,0 +1,109 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>Executions</h1>
+      <p class="muted tiny">
+        <span class="mono">wf_exec_log</span> detail. The row is written before the engine
+        is invoked, so a submission that never reached the engine appears here as PENDING
+        with no engine reference.
+      </p>
+    </div>
+  </div>
+
+  @if (stuckCount() > 0) {
+    <div class="alert">
+      <strong>{{ stuckCount() }} execution(s) never acknowledged by an engine.</strong>
+      Written PENDING more than five minutes ago with no engine reference. This is a submit
+      failure, not a slow start.
+    </div>
+  }
+
+  <div class="card">
+    <div class="card-pad filters row-between">
+      <div class="row">
+        @for (s of ['all', 'PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED']; track s) {
+          <button class="pill" [class.pill-on]="status() === s"
+                  (click)="setStatus($any(s))">{{ s }}</button>
+        }
+      </div>
+      <span class="muted tiny">{{ rows().length }} shown · click a row for payloads</span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th style="width: 28px"></th>
+            <th>Workflow</th>
+            <th>Engine</th>
+            <th>Engine reference</th>
+            <th>Status</th>
+            <th class="num">Duration</th>
+            <th>Trace</th>
+            <th>Requested</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of rows(); track e.exec_id) {
+            <tr class="clickable" (click)="toggle(e.exec_id)" [class.row-flag]="stuck(e)">
+              <td class="twisty">{{ expanded() === e.exec_id ? '▾' : '▸' }}</td>
+              <td>
+                <div class="cell-title">{{ e.workflow }}</div>
+                <div class="mono">{{ e.domain }} / {{ e.sub_domain }}</div>
+              </td>
+              <td><span class="chip chip-neutral">{{ stackLabel(e.tech_stack) }}</span></td>
+              <td>
+                @if (e.wf_ref_id) {
+                  <span class="mono">{{ e.wf_ref_id }}</span>
+                } @else {
+                  <span class="tiny" style="color: var(--amber-700)">not acknowledged</span>
+                }
+              </td>
+              <td>
+                <span [class]="statusChip(e.status)">
+                  <span class="chip-dot"></span>{{ e.status }}
+                </span>
+              </td>
+              <td class="num">{{ duration(e) }}</td>
+              <td class="mono">{{ e.trace_id }}</td>
+              <td class="tiny muted">{{ e.requested_by || 'system' }}</td>
+            </tr>
+            @if (expanded() === e.exec_id) {
+              <tr class="detail-row">
+                <td colspan="8">
+                  <div class="detail">
+                    <div class="detail-col">
+                      <span class="metric-label">input_data</span>
+                      <pre class="mono">{{ e.input_data | json }}</pre>
+                    </div>
+                    <div class="detail-col">
+                      <span class="metric-label">output_data</span>
+                      @if (e.output_data) {
+                        <pre class="mono">{{ e.output_data | json }}</pre>
+                      } @else {
+                        <p class="muted tiny">none yet</p>
+                      }
+                    </div>
+                    <div class="detail-col">
+                      <span class="metric-label">error</span>
+                      @if (e.error) {
+                        <pre class="mono err">{{ e.error | json }}</pre>
+                      } @else {
+                        <p class="muted tiny">none</p>
+                      }
+                    </div>
+                  </div>
+                  <div class="detail-ids mono">
+                    exec_id {{ e.exec_id }}
+                    @if (e.wf_batch_id) { · wf_batch_id {{ e.wf_batch_id }} }
+                    · tenant {{ e.tenant_id }} · env {{ e.env }}
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

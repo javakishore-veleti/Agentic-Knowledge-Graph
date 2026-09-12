@@ -1,0 +1,10 @@
+{
+  "doc_id": "12345678",
+  "dense_score": 0.8123,
+  "rerank_score": 0.9412,
+  "certification": {
+    "route": "co_annotation",
+    "reason": "shares major descriptors D008687, D003924 with the question grounding",
+    "path": ["12345678"]
+  }
+}

@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# local dev runtime state (pids, logs)
+.local-run/
+
+# Angular per-portal workspaces own their deps and build output
+Portals/*/node_modules/
+Portals/*/dist/
+Portals/*/.angular/

@@ -1,0 +1,10 @@
+{
+  "artifact": "graph",
+  "version": "2026.09.12-a3f9c1",
+  "source_version": "pubmed-baseline-2026",
+  "ontology_version": "mesh-2026",
+  "built_at": "2026-09-12T04:15:00Z",
+  "checksums": {"indptr.npy": "sha256:9f2b...", "indices.npy": "sha256:1c7e..."},
+  "counts": {"nodes": 39990000, "edges_citation": 929824202},
+  "validation": {"alignment_assert": true, "source_recount": true, "notes": "100 sampled descriptors recounted against source tables"}
+}

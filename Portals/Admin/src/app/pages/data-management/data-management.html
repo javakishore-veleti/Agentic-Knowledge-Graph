@@ -1,0 +1,28 @@
+<div class="dm">
+  <aside class="sidenav" aria-label="Data Management sections">
+    <div class="sidenav-head">
+      <h2>Data Management</h2>
+      <p class="muted tiny">Airflow today; the engine is a config choice.</p>
+    </div>
+    <nav>
+      @for (s of sections(); track s.path) {
+        @if (s.planned) {
+          <span class="sidenav-item is-planned">
+            <span class="sidenav-label">{{ s.label }}</span>
+            <span class="sidenav-hint">{{ s.hint }}</span>
+            <span class="planned-tag">planned</span>
+          </span>
+        } @else {
+          <a class="sidenav-item" [routerLink]="s.path" routerLinkActive="is-active">
+            <span class="sidenav-label">{{ s.label }}</span>
+            <span class="sidenav-hint">{{ s.hint }}</span>
+          </a>
+        }
+      }
+    </nav>
+  </aside>
+
+  <section class="dm-body">
+    <router-outlet />
+  </section>
+</div>

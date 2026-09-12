@@ -1,0 +1,37 @@
+# One trace_id from gateway to answer, and the same OTel wire format everywhere: the
+# collector's exporter is the only thing that differs between local, Azure Monitor and
+# CloudWatch (PRD B 5.3).
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.109.0
+    container_name: akg-otel
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+    networks: [akg]
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: akg-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+    networks: [akg]
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: akg-grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+    ports: ["${GRAFANA_PORT:-3000}:3000"]
+    networks: [akg]
+
+networks:
+  akg:
+    external: true
+    name: ${AKG_NETWORK:-akg-net}

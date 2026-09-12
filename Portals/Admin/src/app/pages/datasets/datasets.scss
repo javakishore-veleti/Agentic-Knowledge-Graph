@@ -1,0 +1,33 @@
+.metric { display: flex; flex-direction: column; gap: .25rem; }
+.metric-label {
+  font-size: .6875rem; font-weight: 680; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-500);
+}
+.metric-value {
+  font-size: 1.625rem; font-weight: 660; letter-spacing: -.02em;
+  color: var(--brand-700); font-variant-numeric: tabular-nums;
+}
+.metric-foot { font-size: .75rem; color: var(--ink-500); }
+.metric-alert { border-color: var(--rose-100); background: #fffafb; }
+.metric-alert .metric-value { color: var(--rose-700); }
+
+.filters { border-bottom: 1px solid var(--line); padding-bottom: .875rem; }
+
+.pill {
+  height: 28px; padding: 0 .75rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-700);
+  font: inherit; font-size: .75rem; font-weight: 600;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: all .14s ease;
+}
+.pill:hover { border-color: var(--brand-200); background: var(--brand-050); }
+.pill-on {
+  background: var(--brand-600); border-color: var(--brand-600); color: #fff;
+}
+
+.cell-title { font-weight: 600; color: var(--ink-900); }
+.empty { text-align: center; padding: 2.5rem; color: var(--ink-500); }

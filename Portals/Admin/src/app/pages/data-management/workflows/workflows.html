@@ -1,0 +1,107 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>Workflows</h1>
+      <p class="muted tiny">
+        Triggering records a row before the engine is called, so a submit that never
+        reaches the engine stays visible instead of disappearing.
+      </p>
+    </div>
+  </div>
+
+  <div class="wf-grid">
+    @for (d of defs(); track d.workflow) {
+      <article class="card card-pad wf-card">
+        <header class="row-between">
+          <h3>{{ d.title }}</h3>
+          <span class="chip chip-neutral">{{ stackLabel(d.runs_on) }}</span>
+        </header>
+        <p class="wf-desc">{{ d.description }}</p>
+        <footer class="row-between wf-foot">
+          <span class="mono">{{ d.domain }} / {{ d.sub_domain }}</span>
+          <button class="btn btn-primary" (click)="open(d)">Trigger…</button>
+        </footer>
+      </article>
+    }
+  </div>
+</div>
+
+@if (selected(); as def) {
+  <div class="drawer-scrim" (click)="close()"></div>
+  <aside class="drawer" role="dialog" [attr.aria-label]="'Trigger ' + def.title">
+    <header class="drawer-head">
+      <div>
+        <h2>{{ def.title }}</h2>
+        <p class="muted tiny mono">{{ def.domain }} / {{ def.sub_domain }} / {{ def.workflow }}</p>
+      </div>
+      <button class="btn btn-secondary" (click)="close()">Close</button>
+    </header>
+
+    <div class="drawer-body stack">
+      <div class="notice">
+        Runs on <strong>{{ stackLabel(def.runs_on) }}</strong>, resolved from configuration.
+        The portal cannot choose the engine.
+      </div>
+
+      @for (p of def.params; track p.name) {
+        <label class="field">
+          <span>
+            {{ p.label }}
+            @if (p.required) { <em class="req">required</em> }
+          </span>
+          @switch (p.kind) {
+            @case ('select') {
+              <select (change)="set(p.name, $event)">
+                @for (o of p.options; track o) {
+                  <option [value]="o" [selected]="values()[p.name] === o">{{ o }}</option>
+                }
+              </select>
+            }
+            @case ('bool') {
+              <span class="check">
+                <input type="checkbox" [checked]="!!values()[p.name]"
+                       (change)="set(p.name, $event)" />
+                <span class="tiny">enabled</span>
+              </span>
+            }
+            @case ('date') {
+              <input type="date" [value]="$any(values()[p.name]) || ''"
+                     (input)="set(p.name, $event)" />
+            }
+            @default {
+              <input type="text" [value]="$any(values()[p.name]) || ''"
+                     (input)="set(p.name, $event)" />
+            }
+          }
+          @if (p.help) { <span class="help tiny muted">{{ p.help }}</span> }
+        </label>
+      }
+
+      <div class="card card-pad payload">
+        <span class="metric-label">Request body</span>
+        <pre class="mono">{{ { domain: def.domain, sub_domain: def.sub_domain, workflow: def.workflow, input_data: values() } | json }}</pre>
+      </div>
+    </div>
+
+    <footer class="drawer-foot">
+      @if (submitted(); as id) {
+        <div class="ok-banner">
+          <strong>Queued.</strong>
+          <span class="mono">exec_id {{ id }}</span>
+          <span class="tiny">Status PENDING until the engine returns a wf_ref_id.</span>
+        </div>
+      } @else {
+        @if (missing.length) {
+          <span class="tiny" style="color: var(--amber-700)">
+            Missing: {{ missing.join(', ') }}
+          </span>
+        }
+        <div class="spacer"></div>
+        <button class="btn btn-secondary" (click)="close()">Cancel</button>
+        <button class="btn btn-primary" [disabled]="missing.length > 0" (click)="trigger()">
+          Trigger workflow
+        </button>
+      }
+    </footer>
+  </aside>
+}

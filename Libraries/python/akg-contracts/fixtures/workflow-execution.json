@@ -1,0 +1,16 @@
+{
+  "exec_id": "b1f0c2d4-5a6e-47f8-9012-3c4d5e6f7a8b",
+  "domain": "corpus",
+  "sub_domain": "historical-ingest",
+  "workflow": "build_graph_and_index",
+  "tech_stack": "airflow",
+  "wf_ref_id": "manual__2026-09-12T06:30:00+00:00",
+  "status": "RUNNING",
+  "input_data": {"source_version": "pubmed-baseline-2026", "smoke": false},
+  "trace_id": "trace-8c1d9e4f7b13",
+  "tenant_id": "reference",
+  "env": "local",
+  "requested_by": "admin@local",
+  "created_at": "2026-09-12T06:30:00Z",
+  "started_at": "2026-09-12T06:30:04Z"
+}

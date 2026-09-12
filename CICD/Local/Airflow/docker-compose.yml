@@ -1,0 +1,27 @@
+# Airflow orchestrates; it does not compute. Heavy steps run as containerised jobs so the
+# scheduler never becomes the bottleneck (PRD A 9.2).
+services:
+  airflow:
+    image: apache/airflow:2.10.2-python3.12
+    container_name: akg-airflow
+    command: standalone
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
+        postgresql+psycopg2://${POSTGRES_USER:-akg}:${POSTGRES_PASSWORD:-akg-local-only}@akg-postgres:5432/${POSTGRES_DB:-akg}
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AKG_ENV: local
+    ports: ["${AIRFLOW_PORT:-8080}:8080"]
+    volumes:
+      - ../../../DataMgmt/airflow/dags:/opt/airflow/dags:ro
+      - ../../../DataMgmt/airflow/plugins:/opt/airflow/plugins:ro
+      - akg-airflow-logs:/opt/airflow/logs
+    networks: [akg]
+
+volumes:
+  akg-airflow-logs:
+networks:
+  akg:
+    external: true
+    name: ${AKG_NETWORK:-akg-net}

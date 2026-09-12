@@ -1,0 +1,91 @@
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* Deep indigo to violet. Carries the brand without a grey chrome anywhere. */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  height: 56px;
+  padding: 0 1.5rem;
+  background: linear-gradient(96deg, var(--brand-900) 0%, var(--brand-700) 58%, #5a3bb8 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .08), var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand { display: flex; align-items: center; gap: .625rem; flex-shrink: 0; }
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .16);
+  color: #fff;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-text strong { color: #fff; font-size: .875rem; font-weight: 650; letter-spacing: -.005em; }
+.brand-text em {
+  font-style: normal;
+  font-size: .625rem;
+  color: var(--brand-200);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.topnav { display: flex; align-items: center; gap: .25rem; flex: 1; }
+.topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  height: 32px;
+  padding: 0 .75rem;
+  border-radius: var(--radius-sm);
+  font-size: .8125rem;
+  font-weight: 560;
+  color: var(--brand-100);
+  text-decoration: none;
+  transition: background .14s ease, color .14s ease;
+}
+.topnav-link:hover { background: rgba(255, 255, 255, .12); color: #fff; text-decoration: none; }
+.topnav-link.is-active { background: rgba(255, 255, 255, .18); color: #fff; }
+.topnav-link.is-planned { color: rgba(228, 225, 254, .5); cursor: default; }
+.topnav-link.is-planned:hover { background: transparent; color: rgba(228, 225, 254, .5); }
+.planned-dot {
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: var(--amber-600);
+  display: inline-block;
+}
+
+.topbar-right { display: flex; align-items: center; gap: .75rem; flex-shrink: 0; }
+.env-badge {
+  padding: .1875rem .5rem;
+  border-radius: 999px;
+  font-size: .6875rem;
+  font-weight: 680;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  background: rgba(255, 255, 255, .18);
+  color: #fff;
+}
+.env-badge.env-local { background: var(--teal-600); }
+.tenant { font-size: .75rem; color: var(--brand-100); }
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand-700);
+  font-size: .6875rem;
+  font-weight: 700;
+}
+
+.content { flex: 1; padding: 1.5rem; max-width: 1500px; width: 100%; margin: 0 auto; }
+
+@media (max-width: 900px) {
+  .topbar { gap: 1rem; padding: 0 1rem; }
+  .brand-text { display: none; }
+  .topnav { overflow-x: auto; }
+}

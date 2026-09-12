@@ -1,0 +1,11 @@
+{
+  "disposition": "REFUSE",
+  "admitted": [],
+  "refusal_reason": "no_entry_point",
+  "pins": {
+    "graph": "2026.09.12-a3f9c1",
+    "index": "2026.09.12-7b21de",
+    "ontology": "mesh-2026",
+    "calibration": "cal-2026.09.10-01"
+  }
+}

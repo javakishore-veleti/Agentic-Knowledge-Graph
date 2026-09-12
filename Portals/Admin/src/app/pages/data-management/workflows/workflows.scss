@@ -1,0 +1,77 @@
+.wf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+.wf-card { display: flex; flex-direction: column; gap: .75rem; }
+.wf-card h3 { font-size: .9375rem; }
+.wf-desc { font-size: .8125rem; color: var(--ink-700); line-height: 1.55; flex: 1; }
+.wf-foot { border-top: 1px solid var(--line); padding-top: .75rem; }
+
+.drawer-scrim {
+  position: fixed; inset: 0;
+  background: rgba(23, 19, 70, .38);
+  backdrop-filter: blur(1.5px);
+  z-index: 30;
+}
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(520px, 100vw);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  z-index: 31;
+  display: flex; flex-direction: column;
+}
+.drawer-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding: 1.125rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--brand-050), var(--surface));
+}
+.drawer-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+.drawer-foot {
+  display: flex; align-items: center; gap: .625rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+
+.notice {
+  padding: .625rem .75rem;
+  border-radius: var(--radius-sm);
+  background: var(--brand-050);
+  border: 1px solid var(--brand-100);
+  font-size: .8125rem;
+  color: var(--ink-700);
+}
+.req {
+  font-style: normal; font-size: .625rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em;
+  color: var(--brand-600); margin-left: .375rem;
+}
+.help { display: block; margin-top: .3125rem; }
+.check { display: flex; align-items: center; gap: .5rem; height: 34px; }
+.check input { width: 16px; height: 16px; accent-color: var(--brand-600); }
+
+.payload { background: var(--surface-sunken); }
+.payload pre {
+  margin: .5rem 0 0;
+  font-size: .6875rem;
+  line-height: 1.55;
+  color: var(--ink-700);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.metric-label {
+  font-size: .6875rem; font-weight: 680; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-500);
+}
+
+.ok-banner {
+  display: flex; flex-direction: column; gap: .125rem;
+  padding: .625rem .75rem;
+  border-radius: var(--radius-sm);
+  background: var(--teal-100);
+  color: var(--teal-700);
+  flex: 1;
+}

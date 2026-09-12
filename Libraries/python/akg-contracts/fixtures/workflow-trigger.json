@@ -1,0 +1,7 @@
+{
+  "domain": "corpus",
+  "sub_domain": "historical-ingest",
+  "workflow": "build_graph_and_index",
+  "input_data": {"source_version": "pubmed-baseline-2026", "smoke": true},
+  "idempotency_key": "admin-ui-2026-09-12-0001"
+}

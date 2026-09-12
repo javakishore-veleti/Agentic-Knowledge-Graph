@@ -1,0 +1,21 @@
+{
+  "disposition": "ANSWER",
+  "admitted": ["12345678", "23456789"],
+  "prose": "Metformin was associated with lower cardiovascular mortality [12345678].",
+  "label": "yes",
+  "claims": [
+    {
+      "text": "Metformin was associated with lower cardiovascular mortality.",
+      "source": "12345678",
+      "entailment": 0.91
+    }
+  ],
+  "citations": ["12345678"],
+  "confidence": 0.8402,
+  "pins": {
+    "graph": "2026.09.12-a3f9c1",
+    "index": "2026.09.12-7b21de",
+    "ontology": "mesh-2026",
+    "calibration": "cal-2026.09.10-01"
+  }
+}

@@ -1,0 +1,19 @@
+# Azurite is the Azure Storage emulator. It is the local object store rather than MinIO
+# because the Azure adapter must be the one under test daily (ADR-002); an S3 adapter
+# arrives in phase 2 behind the same port.
+services:
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: akg-azurite
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --location /data
+    ports: ["${AZURITE_BLOB_PORT:-10000}:10000"]
+    volumes:
+      - akg-azurite-data:/data
+    networks: [akg]
+
+volumes:
+  akg-azurite-data:
+networks:
+  akg:
+    external: true
+    name: ${AKG_NETWORK:-akg-net}

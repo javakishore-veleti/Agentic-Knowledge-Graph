@@ -1,0 +1,9 @@
+{
+  "release": "rel-2026.09.12-01",
+  "created_at": "2026-09-12T05:00:00Z",
+  "graph": "2026.09.12-a3f9c1",
+  "index": "2026.09.12-7b21de",
+  "ontology": "mesh-2026",
+  "calibration": "cal-2026.09.10-01",
+  "eval_summary": {"test_accuracy": 0.832, "gold_in_top_16": 0.951, "margin": 0.294}
+}

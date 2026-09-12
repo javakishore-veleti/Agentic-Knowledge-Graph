@@ -1,0 +1,26 @@
+# Postgres is both the relational store and the vector index (ADR-004).
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: akg-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-akg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-akg-local-only}
+      POSTGRES_DB: ${POSTGRES_DB:-akg}
+    ports: ["${POSTGRES_PORT:-5432}:5432"]
+    volumes:
+      - akg-postgres-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-akg} -d ${POSTGRES_DB:-akg}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [akg]
+
+volumes:
+  akg-postgres-data:
+networks:
+  akg:
+    external: true
+    name: ${AKG_NETWORK:-akg-net}

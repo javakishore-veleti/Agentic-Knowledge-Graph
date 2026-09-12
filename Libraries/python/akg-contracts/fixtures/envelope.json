@@ -1,0 +1,13 @@
+{
+  "event_id": "3f8c1e2a-9b41-4d7e-8a02-5c1d9e4f7b13",
+  "event_type": "answer.produced",
+  "schema_version": 1,
+  "occurred_at": "2026-09-12T06:30:11Z",
+  "producer": "middleware-answer",
+  "trace_id": "trace-8c1d9e4f7b13",
+  "tenant_id": "reference",
+  "env": "local",
+  "classification": "PUBLIC",
+  "partition_key": "12345678",
+  "payload": {"disposition": "ANSWER"}
+}
