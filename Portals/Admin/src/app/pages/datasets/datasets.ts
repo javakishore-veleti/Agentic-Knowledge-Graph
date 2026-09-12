@@ -33,8 +33,15 @@ export class Datasets {
   private readonly history = signal<(string | undefined)[]>([]);
 
 
-  /** Source versions of one logical dataset, newest first. A dataset code with several
-   *  versions is the normal case, not a duplicate. */
+  /** One entry per logical dataset, newest version first.
+   *
+   *  The list shows ONE row per dataset rather than expanding every version inline: a
+   *  table of four rows headed "3 datasets" reads as a miscount, and the version history
+   *  now lives on the detail page where it has room.
+   *
+   *  Caveat worth knowing: the API paginates by version row, so a dataset with many
+   *  versions could straddle a page boundary and appear on both. Fixing that properly
+   *  needs a dataset-level list endpoint rather than grouping in the browser. */
   readonly grouped = computed(() => {
     const by = new Map<string, DatasetDto[]>();
     for (const d of this.rows()) {

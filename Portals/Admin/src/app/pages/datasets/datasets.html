@@ -31,8 +31,10 @@
                 (click)="setAdapter('generic-extraction')">Needs extraction</button>
       </div>
       <span class="muted tiny">
-        {{ grouped().length }} dataset{{ grouped().length === 1 ? '' : 's' }},
-        {{ total() }} source version{{ total() === 1 ? '' : 's' }}
+        {{ grouped().length }} dataset{{ grouped().length === 1 ? '' : 's' }}
+        @if (total() !== grouped().length) {
+          · {{ total() }} source versions across them
+        }
       </span>
     </div>
 
@@ -52,38 +54,36 @@
             <tr><td colspan="5" class="empty muted">Loading…</td></tr>
           } @else {
             @for (versions of grouped(); track versions[0].dataset_id) {
-              @for (d of versions; track d.dataset_id; let first = $first) {
-                <tr [class.version-row]="!first" class="clickable"
-                    [routerLink]="['/datasets', d.dataset_id]">
-                  <td>
-                    @if (first) {
-                      <div class="cell-title">{{ d.name }}</div>
-                      <div class="mono">{{ d.code }}</div>
-                      @if (d.description) {
-                        <div class="muted tiny desc">{{ d.description }}</div>
-                      }
-                    } @else {
-                      <span class="version-mark">↳ earlier version</span>
-                    }
-                  </td>
-                  <td>
-                    @if (first) {
-                      {{ d.sub_domain || '—' }}
-                    }
-                  </td>
-                  <td class="mono">{{ d.source_version }}</td>
-                  <td>
-                    @if (shipsEdges(d)) {
-                      <span class="chip chip-ok">{{ d.adapter }}</span>
-                      <div class="muted tiny">edges shipped · 0 model calls</div>
-                    } @else {
-                      <span class="chip chip-warn">{{ d.adapter }}</span>
-                      <div class="muted tiny">extraction cost reported separately</div>
-                    }
-                  </td>
-                  <td class="tiny muted">{{ d.created_at | date: 'short' }}</td>
-                </tr>
-              }
+              @let d = versions[0];
+              <tr class="clickable" [routerLink]="['/datasets', d.dataset_id]">
+                <td>
+                  <div class="cell-title">{{ d.name }}</div>
+                  <div class="mono">{{ d.code }}</div>
+                  @if (d.description) {
+                    <div class="muted tiny desc">{{ d.description }}</div>
+                  }
+                </td>
+                <td>{{ d.sub_domain || '—' }}</td>
+                <td>
+                  <div class="mono">{{ d.source_version }}</div>
+                  @if (versions.length > 1) {
+                    <span class="chip chip-neutral"
+                          [title]="'Earlier versions are listed on the dataset page'">
+                      +{{ versions.length - 1 }} earlier
+                    </span>
+                  }
+                </td>
+                <td>
+                  @if (shipsEdges(d)) {
+                    <span class="chip chip-ok">{{ d.adapter }}</span>
+                    <div class="muted tiny">edges shipped · 0 model calls</div>
+                  } @else {
+                    <span class="chip chip-warn">{{ d.adapter }}</span>
+                    <div class="muted tiny">extraction cost reported separately</div>
+                  }
+                </td>
+                <td class="tiny muted">{{ d.created_at | date: 'short' }}</td>
+              </tr>
             } @empty {
               <tr><td colspan="5" class="empty muted">No datasets match this filter.</td></tr>
             }
@@ -91,9 +91,10 @@
         </tbody>
       </table>
     </div>
-    <app-pager [shown]="rows().length" [total]="total()" noun="source version"
-               nounPlural="source versions"
-               [context]="grouped().length + ' dataset' + (grouped().length === 1 ? '' : 's')"
+    <app-pager [shown]="grouped().length" [total]="grouped().length" noun="dataset"
+               nounPlural="datasets"
+               [context]="total() !== grouped().length
+                 ? total() + ' source versions across them' : ''"
                [nextCursor]="nextCursor()" [canPrev]="canPrev()"
                (next)="next()" (prev)="prev()" />
   </div>
