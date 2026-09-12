@@ -1,0 +1,93 @@
+<div class="stack">
+  <div>
+    <h1>Initial Data</h1>
+    <p class="muted tiny">
+      A blank database starts with every list empty. These loads populate the reference
+      content the rest of the portal needs, and each one records what it did so pressing a
+      button twice cannot load the same rows twice.
+    </p>
+  </div>
+
+  @if (loading()) {
+    <p class="muted tiny">Loading…</p>
+  } @else {
+    @if (allLoaded()) {
+      <div class="banner ok">
+        <strong>Everything is loaded.</strong>
+        The catalog has its reference content; nothing here needs doing.
+      </div>
+    } @else if (nextStep(); as next) {
+      <div class="banner info">
+        <strong>Start with {{ copy[next.entity]?.title ?? next.entity }}.</strong>
+        Work down the list in order — later entities reference earlier ones by foreign key,
+        so loading out of order fails at the constraint rather than at a message you can
+        read.
+      </div>
+    }
+
+    @if (message(); as m) {
+      <div class="banner" [class.ok]="m.kind === 'ok'" [class.warn]="m.kind === 'warn'"
+           [class.bad]="m.kind === 'bad'">{{ m.text }}</div>
+    }
+
+    @for (r of ordered(); track r.entity) {
+      <app-accordion
+        [title]="r.load_order + '. ' + (copy[r.entity]?.title ?? r.entity)"
+        [badge]="r.row_count"
+        [startOpen]="r.last_status !== 'SUCCEEDED'"
+        [hint]="statusText(r)">
+
+        <p class="tiny">{{ copy[r.entity]?.what }}</p>
+        <p class="muted tiny" style="margin-top: .375rem">{{ copy[r.entity]?.why }}</p>
+
+        <div class="state">
+          <div>
+            <span class="metric-label">In the database</span>
+            <span class="metric-value">{{ r.row_count }}</span>
+          </div>
+          <div>
+            <span class="metric-label">Status</span>
+            <span [class]="statusChip(r)">{{ statusText(r) }}</span>
+          </div>
+          @if (r.last_run_at) {
+            <div>
+              <span class="metric-label">Last run</span>
+              <span class="tiny">{{ r.last_run_at | date: 'short' }}</span>
+            </div>
+          }
+          @if (r.last_inserted !== null) {
+            <div>
+              <span class="metric-label">Inserted / skipped</span>
+              <span class="mono tiny">{{ r.last_inserted }} / {{ r.last_skipped }}</span>
+            </div>
+          }
+        </div>
+
+        @if (blockedBy(r); as dep) {
+          <div class="banner bad tiny" style="margin-top: .75rem">
+            Blocked: load <strong>{{ copy[dep]?.title ?? dep }}</strong> first.
+            {{ copy[r.entity]?.title }} references it, so this would fail at the foreign key.
+          </div>
+        }
+
+        <div class="row-between actions">
+          <span class="muted tiny">
+            Runs an Airflow workflow that inserts the rows. Every insert is
+            conflict-tolerant, so a repeat changes nothing.
+          </span>
+          <div class="row">
+            @if (r.last_status === 'SUCCEEDED') {
+              <span class="muted tiny">Already loaded</span>
+              <button class="btn btn-secondary" [disabled]="busy() !== null"
+                      (click)="load(r, true)">Reload anyway</button>
+            } @else {
+              <button class="btn btn-primary" [disabled]="!canLoad(r)" (click)="load(r)">
+                {{ busy() === r.entity ? 'Starting…' : 'Load ' + (copy[r.entity]?.title ?? r.entity) }}
+              </button>
+            }
+          </div>
+        </div>
+      </app-accordion>
+    }
+  }
+</div>

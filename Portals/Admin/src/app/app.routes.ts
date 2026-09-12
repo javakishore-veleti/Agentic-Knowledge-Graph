@@ -71,6 +71,20 @@ export const routes: Routes = [
     ],
   },
   {
+    path: 'administration',
+    loadComponent: () =>
+      import('./pages/administration/administration').then((m) => m.Administration),
+    title: 'Administration · Knowledge Admin',
+    children: [
+      { path: '', redirectTo: 'initial-data', pathMatch: 'full' },
+      {
+        path: 'initial-data',
+        loadComponent: () =>
+          import('./pages/administration/initial-data').then((m) => m.InitialData),
+      },
+    ],
+  },
+  {
     path: 'traces',
     loadComponent: () => import('./pages/traces/traces').then((m) => m.Traces),
     title: 'Traces · Knowledge Admin',

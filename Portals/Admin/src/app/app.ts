@@ -30,6 +30,7 @@ export class App {
     { path: '/data-management', label: 'Data Management' },
     { path: '/traces', label: 'Traces' },
     { path: '/releases', label: 'Releases' },
+    { path: '/administration', label: 'Administration' },
     { path: '/operations', label: 'Operations', planned: true },
     { path: '/access', label: 'Access', planned: true },
   ]);

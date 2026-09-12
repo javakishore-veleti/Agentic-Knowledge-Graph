@@ -1,0 +1,25 @@
+.metric-label {
+  display: block;
+  font-size: .6875rem; font-weight: 680; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-500);
+}
+.metric-value {
+  font-size: 1.25rem; font-weight: 660; color: var(--brand-700);
+  font-variant-numeric: tabular-nums;
+}
+.state {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1rem; margin: .875rem 0 0; padding-top: .875rem;
+  border-top: 1px solid var(--line);
+}
+.state > div { display: flex; flex-direction: column; gap: .25rem; align-items: flex-start; }
+.actions { margin-top: .875rem; padding-top: .875rem; border-top: 1px solid var(--line); }
+
+.banner {
+  padding: .75rem .875rem; border-radius: var(--radius-sm); font-size: .8125rem;
+  background: var(--surface-sunken); border: 1px solid var(--line); color: var(--ink-700);
+}
+.banner.ok   { background: var(--teal-100);  border-color: #99f6e4; color: var(--teal-700); }
+.banner.warn { background: var(--amber-100); border-color: #fde68a; color: var(--amber-700); }
+.banner.bad  { background: var(--rose-100);  border-color: #fecdd3; color: var(--rose-700); }
+.banner.info { background: var(--brand-050); border-color: var(--brand-100); color: var(--ink-700); }

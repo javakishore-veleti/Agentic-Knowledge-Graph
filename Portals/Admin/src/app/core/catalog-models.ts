@@ -335,3 +335,30 @@ export function locationStateChip(s: DatasetEndpointDto['state']): string {
 export function roleLabel(r: LocationRole): string {
   return { source: 'Source', landing: 'Landing', curated: 'Curated', export: 'Export' }[r];
 }
+
+
+/* ---- first-run data loading (ADR-017) --------------------------------- */
+
+export type InitialDataEntity =
+  | 'purposes' | 'domains' | 'endpoints' | 'datasets' | 'workflows';
+
+export interface InitialDataStatusDto {
+  entity: InitialDataEntity;
+  row_count: number;
+  last_status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | null;
+  last_inserted: number | null;
+  last_skipped: number | null;
+  last_run_at: string | null;
+  /** What must be loaded first. Null means no prerequisite. */
+  depends_on: InitialDataEntity | null;
+  /** The order to work through on a blank database. */
+  load_order: number;
+}
+
+export interface LoadResultDto {
+  entity: InitialDataEntity;
+  claimed: boolean;
+  /** claimed | already_loaded | already_running | requires_<entity> */
+  reason: string;
+  tracker_id?: string;
+}

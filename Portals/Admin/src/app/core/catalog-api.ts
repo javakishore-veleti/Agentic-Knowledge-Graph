@@ -2,9 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, InjectionToken, inject, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import {
-  AppEndpointDto, ConnectionType, CreateMioReq, DataInstanceDto, DatasetEndpointDto, DataInstanceExecDto, DataInstancesResp,
+  AppEndpointDto, ConnectionType, CreateMioReq, InitialDataEntity, DataInstanceDto, DatasetEndpointDto, DataInstanceExecDto, DataInstancesResp,
   DatasetDto, DomainDto, InvokeResp, MioDto, MioLineageResp, MioWorkflowDto, Paged,
-  Provider, UpdateMioReq, WorkflowDto,
+  InitialDataStatusDto, LoadResultDto, Provider, UpdateMioReq, WorkflowDto,
 } from './catalog-models';
 
 /** What the portal needs from the DataCatalog service.
@@ -20,6 +20,8 @@ export abstract class CatalogApi {
   abstract endpoints(filters?: { provider?: string; env?: string }): Observable<Paged<AppEndpointDto>>;
   abstract lineage(mioId: string): Observable<MioLineageResp>;
   abstract datasetLocations(datasetId: string): Observable<{ dataset_id: string; items: DatasetEndpointDto[] }>;
+  abstract initialDataStatus(): Observable<{ items: InitialDataStatusDto[] }>;
+  abstract loadInitialData(entity: string, force: boolean): Observable<LoadResultDto>;
 
   abstract workflows(filters?: { domain?: string; q?: string }): Observable<Paged<WorkflowDto>>;
   abstract mioWorkflows(mioId: string): Observable<{ mio_id: string; items: MioWorkflowDto[] }>;
@@ -79,6 +81,16 @@ export class HttpCatalogApi extends CatalogApi {
   datasetLocations(datasetId: string): Observable<{ dataset_id: string; items: DatasetEndpointDto[] }> {
     return this.http.get<{ dataset_id: string; items: DatasetEndpointDto[] }>(
       `${this.base}/api/v1/datasets/${datasetId}/endpoints`);
+  }
+
+  initialDataStatus(): Observable<{ items: InitialDataStatusDto[] }> {
+    return this.http.get<{ items: InitialDataStatusDto[] }>(
+      `${this.base}/api/v1/admin/initial-data`);
+  }
+
+  loadInitialData(entity: string, force: boolean): Observable<LoadResultDto> {
+    return this.http.post<LoadResultDto>(
+      `${this.base}/api/v1/admin/initial-data/${entity}/load`, { force });
   }
 
   workflows(f: { domain?: string; q?: string } = {}): Observable<Paged<WorkflowDto>> {
@@ -229,6 +241,54 @@ export class MockCatalogApi extends CatalogApi {
       (!f.tech_stack || m.tech_stack === f.tech_stack) &&
       (f.has_cdc === undefined || m.has_cdc === f.has_cdc) &&
       (!f.q || (m.name + m.code).toLowerCase().includes(f.q.toLowerCase())))));
+  }
+
+  /** In-memory so the Administration screen behaves without a backend: loading an entity
+   *  fills it, a second press reports already_loaded, and prerequisites are enforced. */
+  private loaded_ = new Map<string, { count: number; at: string }>();
+
+  initialDataStatus(): Observable<{ items: InitialDataStatusDto[] }> {
+    const spec: [InitialDataEntity, number, InitialDataEntity | null, number][] = [
+      ['purposes', 1, null, 13],
+      ['domains', 2, null, 2],
+      ['endpoints', 3, null, 2],
+      ['datasets', 4, 'domains', 4],
+      ['workflows', 5, 'purposes', 5],
+    ];
+    return of({
+      items: spec.map(([entity, order, depends, seedCount]) => {
+        const done = this.loaded_.get(entity);
+        return {
+          entity, load_order: order, depends_on: depends,
+          row_count: done ? done.count : (entity === 'endpoints' ? 2 : 0),
+          last_status: done ? ('SUCCEEDED' as const) : null,
+          last_inserted: done ? done.count : null,
+          last_skipped: 0,
+          last_run_at: done ? done.at : null,
+        };
+      }),
+    });
+  }
+
+  loadInitialData(entity: string, force: boolean): Observable<LoadResultDto> {
+    const counts: Record<string, number> = {
+      purposes: 13, domains: 2, endpoints: 2, datasets: 4, workflows: 5,
+    };
+    const deps: Record<string, string | undefined> = {
+      datasets: 'domains', workflows: 'purposes',
+    };
+    const need = deps[entity];
+    if (need && !this.loaded_.has(need)) {
+      return of({ entity: entity as InitialDataEntity, claimed: false,
+                  reason: `requires_${need}` });
+    }
+    if (this.loaded_.has(entity) && !force) {
+      return of({ entity: entity as InitialDataEntity, claimed: false,
+                  reason: 'already_loaded' });
+    }
+    this.loaded_.set(entity, { count: counts[entity] ?? 0, at: new Date().toISOString() });
+    return of({ entity: entity as InitialDataEntity, claimed: true, reason: 'claimed',
+                tracker_id: crypto.randomUUID() });
   }
 
   datasetLocations(datasetId: string): Observable<{ dataset_id: string; items: DatasetEndpointDto[] }> {
