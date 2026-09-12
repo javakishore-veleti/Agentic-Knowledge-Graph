@@ -5,21 +5,19 @@
   "description": "Local development commands only. This is NOT a build manifest: each portal and service owns its own dependencies and is deployed independently.",
   "scripts": {
     "local:ui:install-all": "CICD/Local/UI/ui-install-all.sh",
-
     "local:ui:run-all": "CICD/Local/UI/ui-run-all.sh",
     "local:ui:start-all": "CICD/Local/UI/ui-start-all.sh",
     "local:ui:stop-all": "CICD/Local/UI/ui-stop-all.sh",
     "local:ui:status-all": "CICD/Local/UI/ui-status-all.sh",
     "local:ui:build-all": "CICD/Local/UI/ui-build-all.sh",
-
     "local:ui:run-admin": "npm start --prefix Portals/Admin -- --port 4300",
     "local:ui:run-customer": "npm start --prefix Portals/Customer -- --port 4301",
-
     "local:docker:up-all": "CICD/Local/docker-all-up.sh",
     "local:docker:down-all": "CICD/Local/docker-all-down.sh",
     "local:docker:status-all": "CICD/Local/all-status.sh",
-
-    "local:contracts:test": "uv run --directory Libraries/python/akg-contracts --with pydantic --with pytest python -m pytest -q"
+    "local:contracts:test": "uv run --directory Libraries/python/akg-contracts --with pydantic --with pytest python -m pytest -q",
+    "local:catalog:test": "CICD/Local/run-catalog-tests.sh",
+    "local:catalog:run": "uv run --directory Middleware/data-catalog --with fastapi --with 'uvicorn[standard]' --with sqlalchemy --with 'psycopg[binary]' --with pydantic-settings --with-editable . uvicorn data_catalog.app:app --port 8001 --reload"
   },
   "engines": {
     "node": ">=20"
