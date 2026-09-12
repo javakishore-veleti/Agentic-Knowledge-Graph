@@ -10,6 +10,10 @@ from .errors import NotFoundError, ServiceError, ValidationError
 from .object_factory import DAO_FACTORY, SERVICE_FACTORY, ObjectFactory
 from .paging import DEFAULT_LIMIT, MAX_LIMIT, clamp_limit, decode_cursor, encode_cursor
 from .task import ITask, IWorkflow
+from .credentials import AUTH_MODES, AuthProbe, aws_profiles, probe
+from .endpoint_env import (
+    ResolvedEndpoint, redact, resolve_endpoint,
+)
 from .validators import (
     redact_uri, uri_carries_credentials, uri_has_scheme,
 )
@@ -18,5 +22,7 @@ __all__ = [
     "DAO_FACTORY", "DEFAULT_LIMIT", "MAX_LIMIT", "SERVICE_FACTORY", "BaseCtx", "ITask",
     "IWorkflow", "NotFoundError", "ObjectFactory", "ServiceError", "TaskRecord",
     "ValidationError", "clamp_limit", "decode_cursor", "encode_cursor",
-    "redact_uri", "uri_carries_credentials", "uri_has_scheme",
+    "AUTH_MODES", "AuthProbe", "ResolvedEndpoint", "aws_profiles", "probe",
+    "redact", "redact_uri", "resolve_endpoint",
+    "uri_carries_credentials", "uri_has_scheme",
 ]
