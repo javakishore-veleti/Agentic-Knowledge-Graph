@@ -16,6 +16,8 @@ from .dao.catalog_dao_impl import (
     AppEndpointDaoImpl, DataInstanceDaoImpl, DataInstanceExecDaoImpl, DatasetDaoImpl,
     DomainDaoImpl, HealthDaoImpl, MioDaoImpl,
 )
+from .dao.dataset_endpoint_dao_impl import AcquisitionDaoImpl, DatasetEndpointDaoImpl
+from .dao.i_dataset_endpoint_dao import IAcquisitionDao, IDatasetEndpointDao
 from .dao.i_workflow_dao import IInvocationDao, IMioWriteDao, IWorkflowDao
 from .dao.workflow_dao_impl import InvocationDaoImpl, MioWriteDaoImpl, WorkflowDaoImpl
 from .dao.i_catalog_dao import (
@@ -30,6 +32,8 @@ from .service.catalog_service_impl import (
     AppEndpointServiceImpl, DataInstanceExecServiceImpl, DatasetServiceImpl,
     DomainServiceImpl, HealthServiceImpl, MioServiceImpl,
 )
+from .service.dataset_location_service_impl import DatasetLocationServiceImpl
+from .service.i_dataset_location_service import IDatasetLocationService
 from .service.i_catalog_service import (
     IMioWriteService, IWorkflowService, IAppEndpointService, IDataInstanceExecService, IDatasetService, IDomainService,
     IHealthService, IMioService,
@@ -50,6 +54,8 @@ def register_all() -> None:
     DAO_FACTORY.register(IWorkflowDao, lambda: WorkflowDaoImpl(SessionLocal))
     DAO_FACTORY.register(IMioWriteDao, lambda: MioWriteDaoImpl(SessionLocal))
     DAO_FACTORY.register(IInvocationDao, lambda: InvocationDaoImpl(SessionLocal))
+    DAO_FACTORY.register(IDatasetEndpointDao, lambda: DatasetEndpointDaoImpl(SessionLocal))
+    DAO_FACTORY.register(IAcquisitionDao, lambda: AcquisitionDaoImpl(SessionLocal))
 
     # --- api -> service ------------------------------------------------------
     SERVICE_FACTORY.register(IDomainService, DomainServiceImpl)
@@ -60,6 +66,7 @@ def register_all() -> None:
     SERVICE_FACTORY.register(IHealthService, HealthServiceImpl)
     SERVICE_FACTORY.register(IWorkflowService, WorkflowServiceImpl)
     SERVICE_FACTORY.register(IMioWriteService, MioWriteServiceImpl)
+    SERVICE_FACTORY.register(IDatasetLocationService, DatasetLocationServiceImpl)
 
     # --- cache ---------------------------------------------------------------
     # The in-memory mirror is built only when the toggle is on, so a disabled mirror

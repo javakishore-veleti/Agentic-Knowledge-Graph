@@ -453,3 +453,86 @@ class InvokeMioWorkflowResp(RespDto):
 @dataclass(slots=True)
 class InvokeMioWorkflowCtx(BaseCtx[InvokeMioWorkflowReq, InvokeMioWorkflowResp]):
     pass
+
+
+# ================================================================ dataset locations
+
+
+class DatasetEndpointDto(ItemDto):
+    """Where a dataset came from, or where a copy of it is stored (ADR-012).
+
+    `uri` carries no credentials -- a database CHECK rejects userinfo before the host, and
+    the connection secret stays on the app_endpoint's secret_ref.
+    """
+
+    dataset_endpoint_id: uuid.UUID
+    dataset_id: uuid.UUID
+    role: str
+    #: Null only for an external source: nobody registers Kaggle as an app endpoint.
+    app_endpoint_id: uuid.UUID | None
+    location_kind: str
+    uri: str
+    options: dict[str, Any]
+    format: str | None
+    bytes: int
+    object_count: int
+    state: str
+    is_primary: bool
+    last_synced_at: datetime | None
+
+
+class DatasetOverviewDto(ItemDto):
+    """A dataset with its locations resolved, for the list API."""
+
+    dataset_id: uuid.UUID
+    domain_id: uuid.UUID
+    domain_code: str
+    code: str
+    name: str
+    description: str
+    source_version: str
+    adapter: str
+    sub_domain: str
+    created_at: datetime
+    location_count: int
+    source_uri: str | None
+    source_kind: str | None
+    stored_bytes: int
+    #: False means nobody can rebuild this dataset: no source location was recorded.
+    has_source: bool
+    has_available_copy: bool
+
+
+class ListDatasetEndpointsReq(ReqDto):
+    dataset_id: uuid.UUID
+    role: str | None = None
+
+
+class ListDatasetEndpointsResp(RespDto):
+    dataset_id: uuid.UUID
+    items: list[DatasetEndpointDto]
+
+
+@dataclass(slots=True)
+class ListDatasetEndpointsCtx(BaseCtx[ListDatasetEndpointsReq, ListDatasetEndpointsResp]):
+    pass
+
+
+class AddDatasetEndpointReq(ReqDto):
+    dataset_id: uuid.UUID
+    role: str = "landing"
+    app_endpoint_id: uuid.UUID | None = None
+    location_kind: str
+    uri: str = Field(min_length=3)
+    options: dict[str, Any] = {}
+    format: str | None = None
+    is_primary: bool = False
+
+
+class AddDatasetEndpointResp(RespDto):
+    dataset_endpoint_id: uuid.UUID
+
+
+@dataclass(slots=True)
+class AddDatasetEndpointCtx(BaseCtx[AddDatasetEndpointReq, AddDatasetEndpointResp]):
+    pass
