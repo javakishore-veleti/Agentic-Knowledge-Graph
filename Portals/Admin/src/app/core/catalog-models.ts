@@ -106,44 +106,64 @@ export interface DataInstanceExecDto {
 
 /** Where a technology lives. No credential field exists here by design; secret_ref names
  *  a Key Vault entry, and the secret never enters the catalog. */
-export type AuthMode =
-  | 'env_vars' | 'aws_profile' | 'aws_role' | 'azure_cli' | 'azure_managed_identity'
-  | 'azure_client_secret' | 'gcp_adc' | 'anonymous';
+export type Provider = 'aws' | 'azure' | 'gcp' | 'local' | 'on_prem' | 'other';
 
-export function authModeLabel(m: AuthMode): string {
+export type ConnectionType =
+  | 'basic_auth' | 'token' | 'client_credentials' | 'command' | 'env_vars'
+  | 'profile' | 'ambient' | 'anonymous';
+
+export function providerLabel(p: Provider): string {
+  return ({ aws: 'AWS', azure: 'Azure', gcp: 'GCP', local: 'Local',
+            on_prem: 'On-premises', other: 'Other' } as Record<Provider, string>)[p] ?? p;
+}
+
+export function connectionTypeLabel(c: ConnectionType): string {
   return ({
+    basic_auth: 'Basic auth',
+    token: 'Token',
+    client_credentials: 'Client credentials',
+    command: 'Credential command',
     env_vars: 'Environment variables',
-    aws_profile: 'AWS named profile',
-    aws_role: 'AWS attached role',
-    azure_cli: 'az login token',
-    azure_managed_identity: 'Azure managed identity',
-    azure_client_secret: 'Azure service principal',
-    gcp_adc: 'GCP default credentials',
-    anonymous: 'No credential',
-  } as Record<AuthMode, string>)[m] ?? m;
+    profile: 'Named profile',
+    ambient: 'Ambient identity',
+    anonymous: 'None',
+  } as Record<ConnectionType, string>)[c] ?? c;
+}
+
+export function providerChip(p: Provider): string {
+  return p === 'aws' ? 'chip chip-warn'
+    : p === 'azure' ? 'chip chip-run'
+    : p === 'gcp' ? 'chip chip-ok'
+    : 'chip chip-neutral';
 }
 
 export interface AppEndpointDto {
   app_endpoint_id: string;
   code: string;
   name: string;
-  tech_stack: string;
+  description: string;
+  /** Who runs it. */
+  provider: Provider;
+  /** What service: s3, blob_storage, rds_postgres, kinesis, filesystem, ... */
+  provider_service: string;
+  /** How to connect. The shape of connection_details follows from this. */
+  connection_type: ConnectionType;
+  /** Non-secret facts at the top level; environment variable NAMES nested under `env`.
+   *  A literal secret at either depth is rejected by the database. */
+  connection_details: Record<string, unknown> & { env?: Record<string, string> };
   env: string;
-  host: string;
-  port: number | null;
-  database: string | null;
-  options: Record<string, unknown>;
-  secret_ref: string | null;
   is_active: boolean;
   /** Ships with the product; cannot be deleted, only deactivated. */
   is_system?: boolean;
-  auth_mode?: AuthMode;
-  /** Non-secret selector: an AWS profile name, an Azure tenant id. */
-  auth_ref?: string | null;
-  username?: string | null;
-  description?: string;
-  /** Logical key -> environment variable NAME. Never a value. */
-  config_env?: Record<string, string>;
+}
+
+export interface PurposeDto {
+  purpose_code: string;
+  name: string;
+  description: string;
+  sort_order: number;
+  is_system: boolean;
+  workflow_count?: number;
 }
 
 export interface MioLineageEdgeDto {

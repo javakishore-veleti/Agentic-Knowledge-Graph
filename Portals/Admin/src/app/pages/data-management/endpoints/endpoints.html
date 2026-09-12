@@ -3,95 +3,101 @@
     <div>
       <h1>Endpoints</h1>
       <p class="muted tiny">
-        Where each technology lives. Several endpoints may serve one technology, so nothing
-        is keyed on technology alone.
+        One row per way of reaching a service. The same S3 bucket is a different endpoint
+        depending on how you authenticate to it — a named profile on a laptop, an attached
+        role in EKS, keys in CI — because that is a property of where the code runs.
       </p>
     </div>
-    <div class="row">
-      @for (e of envs(); track e) {
-        <button class="pill" [class.pill-on]="env() === e" (click)="setEnv(e)">{{ e }}</button>
-      }
-    </div>
+    <button class="btn btn-primary">New endpoint</button>
   </div>
 
   <div class="notice">
-    Every endpoint names the <strong>environment variables</strong> that supply its values,
-    never the values themselves. One row therefore works in local, Azure and AWS — they
-    supply different values for the same names. Nothing secret is stored, so nothing
-    secret can appear on this page or in an API response.
-    <span class="muted">Authentication varies by where the code runs: a named profile on a
-    laptop, an attached role in EKS, keys in CI.</span>
+    <strong>Connection details hold names, never values.</strong>
+    Non-secret facts sit at the top level; environment variable <em>names</em> sit under
+    <span class="mono">env</span>. The database rejects a literal secret at either depth,
+    so nothing on this page can be a credential.
   </div>
 
-  @if (loading()) {
-    <p class="muted tiny">Loading…</p>
-  } @else {
-    @for (group of grouped(); track group[0]) {
-      <div class="card">
-        <div class="card-pad group-head row-between">
-          <h2>{{ techLabel(group[0]) }}</h2>
-          <span class="muted tiny">{{ group[1].length }} endpoint(s)</span>
-        </div>
-        <div class="table-wrap">
-          <table class="data">
-            <thead>
-              <tr>
-                <th>Code</th><th>Environment</th><th>Authentication</th><th>Host</th>
-                <th class="num">Port</th><th>Database</th><th>User</th>
-                <th>Reads these variables</th><th>Active</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (e of group[1]; track e.app_endpoint_id) {
-                <tr>
-                  <td>
-                    <div class="cell-title">
-                      {{ e.name }}
-                      @if (e.is_system) {
-                        <span class="chip chip-neutral" title="Ships with the product; cannot be deleted, only deactivated">system</span>
-                      }
-                    </div>
-                    <div class="mono">{{ e.code }}</div>
-                    @if (e.description) { <div class="muted tiny">{{ e.description }}</div> }
-                  </td>
-                  <td><span class="chip chip-neutral">{{ e.env }}</span></td>
-                  <td>
-                    @if (e.auth_mode) {
-                      <span class="chip chip-run">{{ authModeLabel(e.auth_mode) }}</span>
-                      @if (e.auth_ref) {
-                        <div class="mono tiny">{{ e.auth_ref }}</div>
-                      }
-                    } @else {
-                      <span class="muted tiny">—</span>
-                    }
-                  </td>
-                  <td class="mono">{{ e.host }}</td>
-                  <td class="num mono">{{ e.port ?? '—' }}</td>
-                  <td class="mono">{{ e.database || '—' }}</td>
-                  <td class="mono">{{ e.username || '—' }}</td>
-                  <td>
-                    @for (v of envVars(e); track v.k) {
-                      <span class="opt mono" [title]="v.k">{{ v.v }}</span>
-                    }
-                    @for (o of optionPairs(e); track o.k) {
-                      <span class="opt opt-plain mono">{{ o.k }}={{ o.v }}</span>
-                    }
-                  </td>
-                  <td>
-                    @if (e.is_active) {
-                      <span class="chip chip-ok">✓ active</span>
-                    } @else {
-                      <span class="chip chip-neutral">inactive</span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+  <div class="card">
+    <div class="card-pad filters">
+      <div class="row" style="flex-wrap: wrap">
+        <span class="filter-label">Provider</span>
+        @for (p of providers(); track p) {
+          <button class="pill" [class.pill-on]="provider() === p" (click)="setProvider(p)">
+            {{ providerLabel(p) }}
+          </button>
+        }
+        <span class="spacer"></span>
+        <span class="filter-label">Connection</span>
+        @for (c of connTypes(); track c) {
+          <button class="pill" [class.pill-on]="connType() === c" (click)="setConnType(c)">
+            {{ connectionTypeLabel(c) }}
+          </button>
+        }
       </div>
-    } @empty {
-      <p class="muted tiny">No endpoints.</p>
-    }
-  }
+    </div>
+
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Provider</th>
+            <th>Service</th>
+            <th>Connection type</th>
+            <th>Connection details</th>
+            <th>Environment</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="7" class="empty muted">Loading…</td></tr>
+          } @else {
+            @for (e of visible(); track e.app_endpoint_id) {
+              <tr class="clickable" [routerLink]="['/endpoints', e.app_endpoint_id]">
+                <td>
+                  <div class="cell-title">
+                    {{ e.name }}
+                    @if (e.is_system) {
+                      <span class="chip chip-neutral"
+                            title="Ships with the product; cannot be deleted, only deactivated">system</span>
+                    }
+                  </div>
+                  <div class="mono">{{ e.code }}</div>
+                  @if (e.description) { <div class="muted tiny desc">{{ e.description }}</div> }
+                </td>
+                <td><span [class]="providerChip(e.provider)">{{ providerLabel(e.provider) }}</span></td>
+                <td class="mono">{{ e.provider_service }}</td>
+                <td>
+                  <span class="chip chip-run">{{ connectionTypeLabel(e.connection_type) }}</span>
+                </td>
+                <td class="details-cell">
+                  @for (f of facts(e); track f.k) {
+                    <span class="kv mono">{{ f.k }}: {{ f.v }}</span>
+                  }
+                  @for (v of envVars(e); track v.k) {
+                    <span class="kv kv-env mono" [title]="v.k + ' comes from ' + v.v">
+                      {{ v.k }} ← {{ v.v }}
+                    </span>
+                  }
+                </td>
+                <td><span class="chip chip-neutral">{{ e.env }}</span></td>
+                <td>
+                  @if (e.is_active) {
+                    <span class="chip chip-ok">✓ active</span>
+                  } @else {
+                    <span class="chip chip-neutral">inactive</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="empty muted">No endpoints match this filter.</td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="card-pad foot muted tiny">{{ visible().length }} of {{ rows().length }} endpoints</div>
+  </div>
 </div>

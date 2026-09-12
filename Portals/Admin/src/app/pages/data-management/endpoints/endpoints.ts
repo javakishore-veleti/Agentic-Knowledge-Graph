@@ -1,36 +1,43 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CatalogApi } from '../../../core/catalog-api';
-import { AppEndpointDto, authModeLabel, techLabel } from '../../../core/catalog-models';
+import {
+  AppEndpointDto, ConnectionType, Provider, connectionTypeLabel, providerChip,
+  providerLabel,
+} from '../../../core/catalog-models';
 
-/** Where each technology lives.
+/** The list of endpoints.
  *
- * Several endpoints may exist for one technology — a local Postgres and an Azure one, two
- * OpenSearch clusters — so results are grouped by technology rather than collapsed to it.
- *
- * No credential is shown because none exists to show: the catalog stores a Key Vault
- * reference, never a secret. */
+ * An endpoint is one WAY of reaching a service. Provider says who runs it, service says
+ * which one, connection type says how you authenticate, and connection details carries
+ * the rest — non-secret facts at the top level, environment variable NAMES under `env`.
+ * Nothing secret is stored, so nothing secret can be shown. */
 @Component({
   selector: 'page-endpoints',
+  imports: [RouterLink],
   templateUrl: './endpoints.html',
   styleUrl: './endpoints.scss',
 })
 export class Endpoints {
   private readonly api = inject(CatalogApi);
-  readonly techLabel = techLabel;
-  readonly authModeLabel = authModeLabel;
+
+  readonly providerLabel = providerLabel;
+  readonly connectionTypeLabel = connectionTypeLabel;
+  readonly providerChip = providerChip;
 
   readonly rows = signal<AppEndpointDto[]>([]);
   readonly loading = signal(true);
-  readonly env = signal('');
+  readonly provider = signal<string>('');
+  readonly connType = signal<string>('');
 
-  readonly envs = computed(() => [...new Set(this.rows().map((e) => e.env))].sort());
+  readonly providers = computed(
+    () => [...new Set(this.rows().map((e) => e.provider))].sort() as Provider[]);
+  readonly connTypes = computed(
+    () => [...new Set(this.rows().map((e) => e.connection_type))].sort() as ConnectionType[]);
 
-  readonly grouped = computed(() => {
-    const filtered = this.env() ? this.rows().filter((e) => e.env === this.env()) : this.rows();
-    const by = new Map<string, AppEndpointDto[]>();
-    for (const e of filtered) by.set(e.tech_stack, [...(by.get(e.tech_stack) ?? []), e]);
-    return [...by.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  });
+  readonly visible = computed(() => this.rows().filter((e) =>
+    (!this.provider() || e.provider === this.provider()) &&
+    (!this.connType() || e.connection_type === this.connType())));
 
   constructor() {
     this.api.endpoints().subscribe({
@@ -39,15 +46,22 @@ export class Endpoints {
     });
   }
 
-  setEnv(e: string): void { this.env.set(this.env() === e ? '' : e); }
+  setProvider(p: string): void { this.provider.set(this.provider() === p ? '' : p); }
+  setConnType(c: string): void { this.connType.set(this.connType() === c ? '' : c); }
 
-  optionPairs(e: AppEndpointDto): { k: string; v: string }[] {
-    return Object.entries(e.options ?? {}).map(([k, v]) => ({ k, v: String(v) }));
+  /** Non-secret facts: host, port, database, bucket, profile. Shown as-is. */
+  facts(e: AppEndpointDto): { k: string; v: string }[] {
+    return Object.entries(e.connection_details ?? {})
+      .filter(([k]) => k !== 'env')
+      .map(([k, v]) => ({ k, v: String(v) }));
   }
 
-  /** The NAMES of the variables this endpoint reads. Never their values -- the catalog
-   *  does not hold them, so the portal has nothing to leak. */
+  /** Environment variable NAMES. The catalog never holds their values. */
   envVars(e: AppEndpointDto): { k: string; v: string }[] {
-    return Object.entries(e.config_env ?? {}).map(([k, v]) => ({ k, v: String(v) }));
+    return Object.entries(e.connection_details?.env ?? {}).map(([k, v]) => ({ k, v: String(v) }));
   }
+
+  // The drawer is gone: an endpoint carries connection facts, variable names, resolution
+  // status, usage and provenance, and a narrow side panel scrolls most of that away.
+  // /endpoints/:id is also shareable, which a drawer never is.
 }

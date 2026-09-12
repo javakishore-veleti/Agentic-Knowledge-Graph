@@ -2,9 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, InjectionToken, inject, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import {
-  AppEndpointDto, CreateMioReq, DataInstanceDto, DatasetEndpointDto, DataInstanceExecDto, DataInstancesResp,
+  AppEndpointDto, ConnectionType, CreateMioReq, DataInstanceDto, DatasetEndpointDto, DataInstanceExecDto, DataInstancesResp,
   DatasetDto, DomainDto, InvokeResp, MioDto, MioLineageResp, MioWorkflowDto, Paged,
-  UpdateMioReq, WorkflowDto,
+  Provider, UpdateMioReq, WorkflowDto,
 } from './catalog-models';
 
 /** What the portal needs from the DataCatalog service.
@@ -17,7 +17,7 @@ export abstract class CatalogApi {
   abstract mios(filters?: { domain?: string; state?: string; tech_stack?: string; has_cdc?: boolean; q?: string; cursor?: string; limit?: number }): Observable<Paged<MioDto>>;
   abstract instances(mioId: string): Observable<DataInstancesResp>;
   abstract execs(instanceId: string): Observable<Paged<DataInstanceExecDto>>;
-  abstract endpoints(filters?: { tech_stack?: string; env?: string }): Observable<Paged<AppEndpointDto>>;
+  abstract endpoints(filters?: { provider?: string; env?: string }): Observable<Paged<AppEndpointDto>>;
   abstract lineage(mioId: string): Observable<MioLineageResp>;
   abstract datasetLocations(datasetId: string): Observable<{ dataset_id: string; items: DatasetEndpointDto[] }>;
 
@@ -68,7 +68,7 @@ export class HttpCatalogApi extends CatalogApi {
     return this.http.get<Paged<DataInstanceExecDto>>(`${this.base}/api/v1/instances/${instanceId}/execs`);
   }
 
-  endpoints(f: { tech_stack?: string; env?: string } = {}): Observable<Paged<AppEndpointDto>> {
+  endpoints(f: { provider?: string; env?: string } = {}): Observable<Paged<AppEndpointDto>> {
     return this.http.get<Paged<AppEndpointDto>>(`${this.base}/api/v1/app-endpoints`, { params: this.params(f) });
   }
 
@@ -463,105 +463,87 @@ export class MockCatalogApi extends CatalogApi {
     ]));
   }
 
-  endpoints(f: { tech_stack?: string; env?: string } = {}): Observable<Paged<AppEndpointDto>> {
+  endpoints(f: { provider?: string; env?: string } = {}): Observable<Paged<AppEndpointDto>> {
+    // The eleven system endpoints, in the provider shape of migration 011. One row per
+    // WAY of reaching a service, because the way is what differs: the same bucket is
+    // reached by a profile on a laptop, an attached role in EKS, and keys in CI.
+    const mk = (
+      id: string, code: string, name: string, description: string,
+      provider: Provider, service: string, ctype: ConnectionType,
+      details: Record<string, unknown>, env: string,
+    ): AppEndpointDto => ({
+      app_endpoint_id: id, code, name, description, provider,
+      provider_service: service, connection_type: ctype, connection_details: details,
+      env, is_active: true, is_system: true,
+    });
+
     const all: AppEndpointDto[] = [
-      { app_endpoint_id: 'a0', code: 'local-fs', name: 'Local filesystem',
-        description: 'Files on the machine running the code', tech_stack: 'local_fs',
-        env: 'local', host: 'localhost', port: null, database: null, username: null,
-        options: {}, config_env: { root: 'AKG_LOCAL_DATA_ROOT' }, secret_ref: null,
-        auth_mode: 'anonymous', auth_ref: null, is_active: true, is_system: true },
-      { app_endpoint_id: 'a1', code: 'pg-local', name: 'PostgreSQL (local)',
-        description: 'Postgres in the local Docker stack', tech_stack: 'postgres',
-        env: 'local', host: 'localhost', port: 5432, database: 'akg', username: 'akg',
-        options: { sslmode: 'disable' },
-        config_env: { host: 'AKG_PG_HOST', port: 'AKG_PG_PORT',
-                      database: 'AKG_PG_DATABASE', username: 'AKG_PG_USERNAME',
-                      password: 'AKG_PG_PASSWORD' },
-        secret_ref: null, auth_mode: 'env_vars', auth_ref: null,
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1b', code: 'pg-aws-rds', name: 'PostgreSQL (AWS RDS)',
-        description: 'Amazon RDS for PostgreSQL', tech_stack: 'postgres', env: 'aws-dev',
-        host: 'CHANGE-ME.rds.amazonaws.com', port: 5432, database: 'akg', username: 'akg',
-        options: { sslmode: 'require' },
-        config_env: { host: 'AKG_RDS_PG_HOST', password: 'AKG_RDS_PG_PASSWORD' },
-        secret_ref: null, auth_mode: 'env_vars', auth_ref: null,
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1c', code: 'pg-azure', name: 'PostgreSQL (Azure)',
-        description: 'Azure Database for PostgreSQL', tech_stack: 'postgres',
-        env: 'azure-dev', host: 'CHANGE-ME.postgres.database.azure.com', port: 5432,
-        database: 'akg', username: 'akg', options: { sslmode: 'require' },
-        config_env: { host: 'AKG_AZURE_PG_HOST', password: 'AKG_AZURE_PG_PASSWORD' },
-        secret_ref: null, auth_mode: 'env_vars', auth_ref: null,
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1d', code: 'aws-s3-profile', name: 'AWS S3 (named profile)',
-        description: 'Uses a profile from ~/.aws/credentials on this machine',
-        tech_stack: 's3', env: 'local', host: 's3.amazonaws.com', port: null,
-        database: null, username: null, options: {},
-        config_env: { bucket: 'AKG_AWS_S3_BUCKET', region: 'AKG_AWS_REGION' },
-        secret_ref: null, auth_mode: 'aws_profile', auth_ref: 'default',
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1e', code: 'aws-s3-keys', name: 'AWS S3 (access keys)',
-        description: 'Access key and secret supplied by the environment',
-        tech_stack: 's3', env: 'local', host: 's3.amazonaws.com', port: null,
-        database: null, username: null, options: {},
-        config_env: { bucket: 'AKG_AWS_S3_BUCKET',
-                      access_key_id: 'AKG_AWS_ACCESS_KEY_ID',
-                      secret_access_key: 'AKG_AWS_SECRET_ACCESS_KEY' },
-        secret_ref: null, auth_mode: 'env_vars', auth_ref: null,
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1f', code: 'aws-s3-role', name: 'AWS S3 (attached role)',
-        description: 'Instance profile, ECS task role or EKS IRSA', tech_stack: 's3',
-        env: 'aws-dev', host: 's3.amazonaws.com', port: null, database: null,
-        username: null, options: {}, config_env: { bucket: 'AKG_AWS_S3_BUCKET' },
-        secret_ref: null, auth_mode: 'aws_role', auth_ref: null,
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1g', code: 'azure-blob-cli', name: 'Azure Blob (az login)',
-        description: 'Uses the token az login left on this machine',
-        tech_stack: 'azure_blob', env: 'local', host: 'blob.core.windows.net',
-        port: null, database: null, username: null, options: {},
-        config_env: { account: 'AKG_AZURE_STORAGE_ACCOUNT',
-                      container: 'AKG_AZURE_STORAGE_CONTAINER' },
-        secret_ref: null, auth_mode: 'azure_cli', auth_ref: null,
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1h', code: 'azure-blob-sp',
-        name: 'Azure Blob (service principal)',
-        description: 'Client id and secret supplied by the environment',
-        tech_stack: 'azure_blob', env: 'azure-dev', host: 'blob.core.windows.net',
-        port: null, database: null, username: null, options: {},
-        config_env: { tenant_id: 'AKG_AZURE_TENANT_ID',
-                      client_id: 'AKG_AZURE_CLIENT_ID',
-                      client_secret: 'AKG_AZURE_CLIENT_SECRET' },
-        secret_ref: null, auth_mode: 'azure_client_secret', auth_ref: null,
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1i', code: 'azure-blob-msi',
-        name: 'Azure Blob (managed identity)',
-        description: 'Workload identity inside Azure; no secret at all',
-        tech_stack: 'azure_blob', env: 'azure-prod', host: 'blob.core.windows.net',
-        port: null, database: null, username: null, options: {},
-        config_env: { account: 'AKG_AZURE_STORAGE_ACCOUNT' }, secret_ref: null,
-        auth_mode: 'azure_managed_identity', auth_ref: null,
-        is_active: true, is_system: true },
-      { app_endpoint_id: 'a1j', code: 'pubmed-ftp', name: 'PubMed baseline (NCBI)',
-        description: 'Public FTP origin of the annual baseline', tech_stack: 'ftp',
-        env: 'local', host: 'ftp.ncbi.nlm.nih.gov', port: null, database: null,
-        username: null, options: { path: '/pubmed/baseline/' },
-        config_env: { base_url: 'AKG_PUBMED_BASELINE_URL' }, secret_ref: null,
-        auth_mode: 'anonymous', auth_ref: null, is_active: true, is_system: true },
-      { app_endpoint_id: 'a2', code: 'pgvector-local', name: 'Local pgvector', tech_stack: 'pgvector',
-        env: 'local', host: 'localhost', port: 5432, database: 'akg',
-        options: { index: 'doc_embeddings' }, secret_ref: 'kv://akg-local/pg-password', is_active: true },
-      { app_endpoint_id: 'a3', code: 'os-local', name: 'Local OpenSearch', tech_stack: 'opensearch',
-        env: 'local', host: 'localhost', port: 9200, database: null,
-        options: { index: 'documents' }, secret_ref: null, is_active: true },
-      { app_endpoint_id: 'a4', code: 'pg-azure-dev', name: 'Azure Postgres dev', tech_stack: 'postgres',
-        env: 'azure-dev', host: 'akg-dev.postgres.database.azure.com', port: 5432, database: 'akg',
-        options: { sslmode: 'require' }, secret_ref: 'kv://akg-dev/pg-password', is_active: true },
-      { app_endpoint_id: 'a5', code: 'redpanda-local', name: 'Local Redpanda', tech_stack: 'kafka',
-        env: 'local', host: 'localhost', port: 9092, database: null,
-        options: { topic_prefix: 'akg' }, secret_ref: null, is_active: true },
+      mk('a0', 'local-fs', 'Local filesystem', 'Files on the machine running the code',
+         'local', 'filesystem', 'anonymous',
+         { env: { root: 'AKG_LOCAL_DATA_ROOT' } }, 'local'),
+
+      mk('a1', 'pg-local', 'PostgreSQL (local)', 'Postgres in the local Docker stack',
+         'local', 'postgres', 'env_vars',
+         { host: 'localhost', port: 5432, database: 'akg', username: 'akg',
+           sslmode: 'disable',
+           env: { host: 'AKG_PG_HOST', port: 'AKG_PG_PORT', database: 'AKG_PG_DATABASE',
+                  username: 'AKG_PG_USERNAME', password: 'AKG_PG_PASSWORD' } }, 'local'),
+
+      mk('a2', 'pg-aws-rds', 'PostgreSQL (AWS RDS)', 'Amazon RDS for PostgreSQL',
+         'aws', 'rds_postgres', 'env_vars',
+         { host: 'CHANGE-ME.rds.amazonaws.com', port: 5432, database: 'akg',
+           username: 'akg', sslmode: 'require',
+           env: { host: 'AKG_RDS_PG_HOST', password: 'AKG_RDS_PG_PASSWORD' } }, 'aws-dev'),
+
+      mk('a3', 'pg-azure', 'PostgreSQL (Azure Flexible Server)',
+         'Azure Database for PostgreSQL', 'azure', 'postgres_flexible_server', 'env_vars',
+         { host: 'CHANGE-ME.postgres.database.azure.com', port: 5432, database: 'akg',
+           username: 'akg', sslmode: 'require',
+           env: { host: 'AKG_AZURE_PG_HOST', password: 'AKG_AZURE_PG_PASSWORD' } },
+         'azure-dev'),
+
+      mk('a4', 'aws-s3-profile', 'AWS S3 (named profile)',
+         'Uses a profile from ~/.aws/credentials on this machine', 'aws', 's3', 'profile',
+         { profile: 'default',
+           env: { bucket: 'AKG_AWS_S3_BUCKET', region: 'AKG_AWS_REGION' } }, 'local'),
+
+      mk('a5', 'aws-s3-keys', 'AWS S3 (access keys)',
+         'Access key and secret supplied by the environment', 'aws', 's3', 'env_vars',
+         { env: { bucket: 'AKG_AWS_S3_BUCKET', region: 'AKG_AWS_REGION',
+                  access_key_id: 'AKG_AWS_ACCESS_KEY_ID',
+                  secret_access_key: 'AKG_AWS_SECRET_ACCESS_KEY' } }, 'local'),
+
+      mk('a6', 'aws-s3-role', 'AWS S3 (attached role)',
+         'Instance profile, ECS task role or EKS IRSA', 'aws', 's3', 'ambient',
+         { env: { bucket: 'AKG_AWS_S3_BUCKET', region: 'AKG_AWS_REGION' } }, 'aws-dev'),
+
+      mk('a7', 'azure-blob-cli', 'Azure Blob (az login)',
+         'Uses the token az login left on this machine', 'azure', 'blob_storage',
+         // The command is a key from a fixed allowlist, never a command line: free text
+         // would be remote code execution for anyone who can edit an endpoint.
+         'command',
+         { command: 'az_cli_token',
+           env: { account: 'AKG_AZURE_STORAGE_ACCOUNT',
+                  container: 'AKG_AZURE_STORAGE_CONTAINER' } }, 'local'),
+
+      mk('a8', 'azure-blob-sp', 'Azure Blob (service principal)',
+         'Client id and secret supplied by the environment', 'azure', 'blob_storage',
+         'client_credentials',
+         { env: { account: 'AKG_AZURE_STORAGE_ACCOUNT',
+                  tenant_id: 'AKG_AZURE_TENANT_ID', client_id: 'AKG_AZURE_CLIENT_ID',
+                  client_secret: 'AKG_AZURE_CLIENT_SECRET' } }, 'azure-dev'),
+
+      mk('a9', 'azure-blob-msi', 'Azure Blob (managed identity)',
+         'Workload identity inside Azure; no secret at all', 'azure', 'blob_storage',
+         'ambient', { env: { account: 'AKG_AZURE_STORAGE_ACCOUNT' } }, 'azure-prod'),
+
+      mk('a10', 'pubmed-ftp', 'PubMed baseline (NCBI)',
+         'Public FTP origin of the annual baseline', 'local', 'ftp', 'anonymous',
+         { host: 'ftp.ncbi.nlm.nih.gov', path: '/pubmed/baseline/',
+           env: { base_url: 'AKG_PUBMED_BASELINE_URL' } }, 'local'),
     ];
     return of(this.page(all.filter((e) =>
-      (!f.tech_stack || e.tech_stack === f.tech_stack) && (!f.env || e.env === f.env))));
+      (!f.provider || e.provider === f.provider) && (!f.env || e.env === f.env))));
   }
 
   lineage(mioId: string): Observable<MioLineageResp> {

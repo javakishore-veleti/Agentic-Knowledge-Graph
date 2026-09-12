@@ -30,6 +30,12 @@ export const routes: Routes = [
     title: 'Endpoints · Knowledge Admin',
   },
   {
+    path: 'endpoints/:id',
+    loadComponent: () =>
+      import('./pages/endpoint-detail/endpoint-detail').then((m) => m.EndpointDetail),
+    title: 'Endpoint · Knowledge Admin',
+  },
+  {
     path: 'data-management',
     loadComponent: () =>
       import('./pages/data-management/data-management').then((m) => m.DataManagement),

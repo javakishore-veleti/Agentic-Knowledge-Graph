@@ -1,0 +1,24 @@
+.crumb { display: flex; gap: .375rem; align-items: center; }
+.head h1 { display: flex; align-items: center; gap: .5rem; font-size: 1.375rem; }
+
+.summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem; margin-top: 1.125rem; padding-top: 1rem; border-top: 1px solid var(--line);
+}
+.summary > div { display: flex; flex-direction: column; gap: .3125rem; align-items: flex-start; }
+
+.metric-label {
+  font-size: .6875rem; font-weight: 680; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-500);
+}
+
+table.data.mini th, table.data.mini td { padding: .4375rem .625rem; }
+table.data.mini .k { color: var(--ink-700); font-weight: 600; width: 200px; }
+.env-name { color: var(--brand-700); }
+
+.payload {
+  margin: .75rem 0 0; padding: .875rem;
+  background: var(--surface-sunken); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: .6875rem; line-height: 1.6; white-space: pre-wrap; color: var(--ink-700);
+}

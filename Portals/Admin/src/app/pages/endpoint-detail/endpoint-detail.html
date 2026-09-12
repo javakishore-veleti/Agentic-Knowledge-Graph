@@ -1,0 +1,124 @@
+@if (loading()) {
+  <p class="muted tiny">Loading…</p>
+} @else if (notFound()) {
+  <div class="card card-pad">
+    <h1>Endpoint not found</h1>
+    <p class="muted tiny">No endpoint with that id. <a routerLink="/endpoints">Back to the list</a>.</p>
+  </div>
+} @else if (endpoint(); as e) {
+  <div class="stack">
+    <div class="crumb tiny">
+      <a routerLink="/endpoints">Endpoints</a> <span class="muted">/</span>
+      <span class="mono">{{ e.code }}</span>
+    </div>
+
+    <div class="card card-pad head">
+      <div class="row-between">
+        <div>
+          <h1>
+            {{ e.name }}
+            @if (e.is_system) {
+              <span class="chip chip-neutral"
+                    title="Ships with the product; cannot be deleted">system</span>
+            }
+          </h1>
+          <p class="muted tiny">{{ e.description }}</p>
+        </div>
+        <div class="row">
+          @if (e.is_active) {
+            <span class="chip chip-ok">✓ active</span>
+          } @else {
+            <span class="chip chip-neutral">inactive</span>
+          }
+          <button class="btn btn-secondary" [disabled]="e.is_system">Edit</button>
+        </div>
+      </div>
+
+      <div class="summary">
+        <div><span class="metric-label">Provider</span>
+             <span [class]="providerChip(e.provider)">{{ providerLabel(e.provider) }}</span></div>
+        <div><span class="metric-label">Provider service</span>
+             <span class="mono">{{ e.provider_service }}</span></div>
+        <div><span class="metric-label">Connection type</span>
+             <span class="chip chip-run">{{ connectionTypeLabel(e.connection_type) }}</span></div>
+        <div><span class="metric-label">Environment</span>
+             <span class="mono">{{ e.env }}</span></div>
+      </div>
+    </div>
+
+    <app-accordion title="How it connects" [startOpen]="true"
+                   [hint]="connectionTypeLabel(e.connection_type)">
+      <p class="tiny">{{ connectionExplainer() }}</p>
+      @if (facts().length) {
+        <table class="data mini" style="margin-top: .875rem">
+          <tbody>
+            @for (f of facts(); track f.k) {
+              <tr><td class="mono k">{{ f.k }}</td><td class="mono">{{ f.v }}</td></tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="muted tiny" style="margin-top: .625rem">
+          No connection facts stored — this type needs none.
+        </p>
+      }
+    </app-accordion>
+
+    <app-accordion title="Environment variables it reads" [badge]="envVars().length"
+                   [startOpen]="true" hint="names only, never values">
+      @if (envVars().length) {
+        <p class="muted tiny">
+          The catalog stores which variable supplies each value, so one endpoint row works
+          in local, Azure and AWS. Whether each resolves where the code is deployed is
+          answered by
+          <span class="mono">GET /api/v1/app-endpoints/{{ e.app_endpoint_id }}/resolve</span>,
+          which reports presence and never values.
+        </p>
+        <table class="data mini" style="margin-top: .875rem">
+          <thead><tr><th>Key</th><th>Environment variable</th></tr></thead>
+          <tbody>
+            @for (v of envVars(); track v.k) {
+              <tr><td class="mono k">{{ v.k }}</td><td class="mono env-name">{{ v.v }}</td></tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="muted tiny">Reads nothing from the environment.</p>
+      }
+    </app-accordion>
+
+    <app-accordion title="connection_details" hint="raw">
+      <p class="muted tiny">
+        Non-secret facts at the top level; variable names under <span class="mono">env</span>.
+        The database rejects a literal secret at either depth, which is what keeps this
+        block safe to show and to paste into a ticket.
+      </p>
+      <pre class="mono payload">{{ detailsJson() }}</pre>
+    </app-accordion>
+
+    <app-accordion title="Where it is used" hint="datasets and MIOs">
+      <p class="muted tiny">
+        Dataset locations and MIOs referencing this endpoint. Not wired yet — it needs a
+        reverse lookup the catalog does not expose, and guessing it in the portal would be
+        wrong the moment a second writer appears.
+      </p>
+    </app-accordion>
+
+    @if (e.is_system) {
+      <app-accordion title="Why this one cannot be deleted">
+        <p class="tiny">
+          System endpoints ship with the product. Their <span class="mono">code</span> and
+          <span class="mono">provider_service</span> are immutable and deletion is refused
+          by a database trigger, not by this UI — the catalog is written by migrations and
+          by psql as well, and a rule living in one caller holds only until the second
+          arrives.
+        </p>
+        <p class="tiny" style="margin-top: .5rem">
+          A dataset location pointing at a deleted endpoint is a build that cannot run, and
+          the failure appears far from the delete. Deactivating is the supported way to
+          retire one.
+        </p>
+      </app-accordion>
+    }
+  </div>
+}
