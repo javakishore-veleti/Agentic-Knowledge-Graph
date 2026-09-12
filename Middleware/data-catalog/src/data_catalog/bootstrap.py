@@ -16,6 +16,8 @@ from .dao.catalog_dao_impl import (
     AppEndpointDaoImpl, DataInstanceDaoImpl, DataInstanceExecDaoImpl, DatasetDaoImpl,
     DomainDaoImpl, HealthDaoImpl, MioDaoImpl,
 )
+from .dao.i_workflow_dao import IInvocationDao, IMioWriteDao, IWorkflowDao
+from .dao.workflow_dao_impl import InvocationDaoImpl, MioWriteDaoImpl, WorkflowDaoImpl
 from .dao.i_catalog_dao import (
     IAppEndpointDao, IDataInstanceDao, IDataInstanceExecDao, IDatasetDao, IDomainDao,
     IHealthDao, IMioDao,
@@ -24,11 +26,12 @@ from .db import SessionLocal
 from .integration.i_orchestrator_client import IOrchestratorClient
 from .integration.orchestrator_client_impl import OrchestratorClientImpl
 from .service.catalog_service_impl import (
+    MioWriteServiceImpl, WorkflowServiceImpl,
     AppEndpointServiceImpl, DataInstanceExecServiceImpl, DatasetServiceImpl,
     DomainServiceImpl, HealthServiceImpl, MioServiceImpl,
 )
 from .service.i_catalog_service import (
-    IAppEndpointService, IDataInstanceExecService, IDatasetService, IDomainService,
+    IMioWriteService, IWorkflowService, IAppEndpointService, IDataInstanceExecService, IDatasetService, IDomainService,
     IHealthService, IMioService,
 )
 
@@ -44,6 +47,9 @@ def register_all() -> None:
     DAO_FACTORY.register(IDataInstanceExecDao, lambda: DataInstanceExecDaoImpl(SessionLocal))
     DAO_FACTORY.register(IAppEndpointDao, lambda: AppEndpointDaoImpl(SessionLocal))
     DAO_FACTORY.register(IHealthDao, lambda: HealthDaoImpl(SessionLocal))
+    DAO_FACTORY.register(IWorkflowDao, lambda: WorkflowDaoImpl(SessionLocal))
+    DAO_FACTORY.register(IMioWriteDao, lambda: MioWriteDaoImpl(SessionLocal))
+    DAO_FACTORY.register(IInvocationDao, lambda: InvocationDaoImpl(SessionLocal))
 
     # --- api -> service ------------------------------------------------------
     SERVICE_FACTORY.register(IDomainService, DomainServiceImpl)
@@ -52,6 +58,8 @@ def register_all() -> None:
     SERVICE_FACTORY.register(IDataInstanceExecService, DataInstanceExecServiceImpl)
     SERVICE_FACTORY.register(IAppEndpointService, AppEndpointServiceImpl)
     SERVICE_FACTORY.register(IHealthService, HealthServiceImpl)
+    SERVICE_FACTORY.register(IWorkflowService, WorkflowServiceImpl)
+    SERVICE_FACTORY.register(IMioWriteService, MioWriteServiceImpl)
 
     # --- cache ---------------------------------------------------------------
     # The in-memory mirror is built only when the toggle is on, so a disabled mirror

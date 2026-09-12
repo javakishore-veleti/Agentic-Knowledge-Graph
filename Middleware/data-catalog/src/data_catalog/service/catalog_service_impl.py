@@ -82,3 +82,50 @@ class HealthServiceImpl(IHealthService):
     def probe(self) -> dict:
         dao: IHealthDao = DAO_FACTORY.get(IHealthDao)
         return dao.probe()
+
+
+from ..wf.catalog_wf import (  # noqa: E402
+    AttachWorkflowWf, CreateMioWf, DeleteMioWf, DetachWorkflowWf, InvokeMioWorkflowWf,
+    ListMioWorkflowsWf, ListWorkflowsWf, UpdateMioWf,
+)
+from .i_catalog_service import IMioWriteService, IWorkflowService  # noqa: E402
+
+
+class WorkflowServiceImpl(IWorkflowService):
+    def __init__(self) -> None:
+        self._list_wf: IWorkflow = ListWorkflowsWf()
+        self._mio_wfs: IWorkflow = ListMioWorkflowsWf()
+        self._attach_wf: IWorkflow = AttachWorkflowWf()
+        self._detach_wf: IWorkflow = DetachWorkflowWf()
+        self._invoke_wf: IWorkflow = InvokeMioWorkflowWf()
+
+    def list_workflows(self, ctx):
+        return self._list_wf.run(ctx).require_resp()
+
+    def list_mio_workflows(self, ctx):
+        return self._mio_wfs.run(ctx).require_resp()
+
+    def attach_workflow(self, ctx):
+        return self._attach_wf.run(ctx).require_resp()
+
+    def detach_workflow(self, ctx):
+        return self._detach_wf.run(ctx).require_resp()
+
+    def invoke(self, ctx):
+        return self._invoke_wf.run(ctx).require_resp()
+
+
+class MioWriteServiceImpl(IMioWriteService):
+    def __init__(self) -> None:
+        self._create_wf: IWorkflow = CreateMioWf()
+        self._update_wf: IWorkflow = UpdateMioWf()
+        self._delete_wf: IWorkflow = DeleteMioWf()
+
+    def create_mio(self, ctx):
+        return self._create_wf.run(ctx).require_resp()
+
+    def update_mio(self, ctx):
+        return self._update_wf.run(ctx).require_resp()
+
+    def delete_mio(self, ctx):
+        return self._delete_wf.run(ctx).require_resp()

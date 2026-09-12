@@ -142,3 +142,118 @@ class GetMioLineageWf(IWorkflow):
 
     def tasks(self) -> tuple[ITask, ...]:
         return self._tasks
+
+
+# ================================================================ workflow master,
+#                                                                  MIO writes, invoke
+
+from ..tasks.workflow_tasks import (  # noqa: E402
+    AttachWorkflowTask, BuildCreateMioRespTask, BuildInvokeRespTask,
+    BuildWorkflowsRespTask, CountWorkflowsTask, CreateMioTask, DeleteMioTask,
+    DetachWorkflowTask, FetchMioWorkflowsTask, FetchWorkflowsTask,
+    RecordInvocationTask, ResolveWorkflowForInvokeTask, SubmitToOrchestratorTask,
+    UpdateMioTask, ValidateCreateMioTask, ValidateInvokeParamsTask,
+    ValidateMioTransitionTask,
+    VerifyMioForWriteTask,
+)
+
+
+class ListWorkflowsWf(IWorkflow):
+    name = "list_workflows_wf"
+
+    def __init__(self) -> None:
+        self._tasks: tuple[ITask, ...] = (
+            ResolvePagingTask(), CountWorkflowsTask(), FetchWorkflowsTask(),
+            BuildWorkflowsRespTask(),
+        )
+
+    def tasks(self) -> tuple[ITask, ...]:
+        return self._tasks
+
+
+class CreateMioWf(IWorkflow):
+    name = "create_mio_wf"
+
+    def __init__(self) -> None:
+        self._tasks: tuple[ITask, ...] = (
+            ValidateCreateMioTask(), CreateMioTask(), BuildCreateMioRespTask(),
+        )
+
+    def tasks(self) -> tuple[ITask, ...]:
+        return self._tasks
+
+
+class UpdateMioWf(IWorkflow):
+    name = "update_mio_wf"
+
+    def __init__(self) -> None:
+        self._tasks: tuple[ITask, ...] = (
+            VerifyMioForWriteTask(), ValidateMioTransitionTask(), UpdateMioTask(),
+        )
+
+    def tasks(self) -> tuple[ITask, ...]:
+        return self._tasks
+
+
+class DeleteMioWf(IWorkflow):
+    name = "delete_mio_wf"
+
+    def __init__(self) -> None:
+        self._tasks: tuple[ITask, ...] = (VerifyMioForWriteTask(), DeleteMioTask())
+
+    def tasks(self) -> tuple[ITask, ...]:
+        return self._tasks
+
+
+class ListMioWorkflowsWf(IWorkflow):
+    name = "list_mio_workflows_wf"
+
+    def __init__(self) -> None:
+        self._tasks: tuple[ITask, ...] = (VerifyMioForWriteTask(), FetchMioWorkflowsTask())
+
+    def tasks(self) -> tuple[ITask, ...]:
+        return self._tasks
+
+
+class AttachWorkflowWf(IWorkflow):
+    name = "attach_workflow_wf"
+
+    def __init__(self) -> None:
+        self._tasks: tuple[ITask, ...] = (VerifyMioForWriteTask(), AttachWorkflowTask())
+
+    def tasks(self) -> tuple[ITask, ...]:
+        return self._tasks
+
+
+class DetachWorkflowWf(IWorkflow):
+    name = "detach_workflow_wf"
+
+    def __init__(self) -> None:
+        self._tasks: tuple[ITask, ...] = (VerifyMioForWriteTask(), DetachWorkflowTask())
+
+    def tasks(self) -> tuple[ITask, ...]:
+        return self._tasks
+
+
+class InvokeMioWorkflowWf(IWorkflow):
+    """Validate, record, then submit -- in that order.
+
+    Recording before submitting is what makes a failed submit visible; validating before
+    recording is what keeps a rejected request from leaving a PENDING row that looks like
+    a stuck one.
+    """
+
+    name = "invoke_mio_workflow_wf"
+
+    def __init__(self) -> None:
+        self._tasks: tuple[ITask, ...] = (
+            VerifyMioForWriteTask(),
+            ResolveWorkflowForInvokeTask(),
+            ValidateInvokeParamsTask(),
+            RecordInvocationTask(),
+            SubmitToOrchestratorTask(),
+            BuildInvokeRespTask(),
+        )
+
+    def tasks(self) -> tuple[ITask, ...]:
+        return self._tasks

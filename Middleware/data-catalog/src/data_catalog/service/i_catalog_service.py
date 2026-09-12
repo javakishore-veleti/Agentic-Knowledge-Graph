@@ -46,3 +46,33 @@ class IAppEndpointService(ABC):
 class IHealthService(ABC):
     @abstractmethod
     def probe(self) -> dict: ...
+
+
+class IWorkflowService(ABC):
+    """Workflow master list, MIO association, and invocation."""
+
+    @abstractmethod
+    def list_workflows(self, ctx): ...
+
+    @abstractmethod
+    def list_mio_workflows(self, ctx): ...
+
+    @abstractmethod
+    def attach_workflow(self, ctx): ...
+
+    @abstractmethod
+    def detach_workflow(self, ctx): ...
+
+    @abstractmethod
+    def invoke(self, ctx): ...
+
+
+class IMioWriteService(ABC):
+    @abstractmethod
+    def create_mio(self, ctx): ...
+
+    @abstractmethod
+    def update_mio(self, ctx): ...
+
+    @abstractmethod
+    def delete_mio(self, ctx): ...

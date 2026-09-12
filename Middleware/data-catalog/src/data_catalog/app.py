@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
-from .api import catalog_router
+from .api import catalog_router, workflow_router
 from .bootstrap import register_all
 from .common.errors import ServiceError
 from .common.object_factory import SERVICE_FACTORY
@@ -85,3 +85,4 @@ def health() -> dict:
 
 
 app.include_router(catalog_router)
+app.include_router(workflow_router)

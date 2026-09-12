@@ -25,6 +25,23 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture
+def a_mio(client: TestClient):
+    """Create a MIO for the test and remove it afterwards.
+
+    Earlier these tests relied on rows seeded outside the suite, so they passed or failed
+    depending on what happened to be in the database.
+    """
+    r = client.post("/api/v1/mios", json={
+        "domain_code": "biomedical", "code": "test-mio", "name": "Test MIO",
+        "tech_stack": "csr_graph",
+    })
+    assert r.status_code == 201, r.text
+    mio = r.json()["mio"]
+    yield mio
+    client.delete(f"/api/v1/mios/{mio['mio_id']}")
+
+
 def test_health_reports_schema_presence(client: TestClient) -> None:
     r = client.get("/health")
     assert r.status_code == 200
@@ -60,11 +77,11 @@ def test_mio_response_does_not_echo_the_tenant(client: TestClient) -> None:
         assert "tenant_id" not in item
 
 
-def test_list_mios_uses_the_overview_view(client: TestClient) -> None:
+def test_list_mios_uses_the_overview_view(client: TestClient, a_mio: dict) -> None:
     r = client.get("/api/v1/mios")
     assert r.status_code == 200, r.text
     items = r.json()["items"]
-    assert items, "expected the seeded MIO"
+    assert items, "expected at least the MIO this test created"
     m = items[0]
     # Fields only the view provides.
     for field in ("validations_pass", "dataset_count", "workflow_count", "has_cdc",

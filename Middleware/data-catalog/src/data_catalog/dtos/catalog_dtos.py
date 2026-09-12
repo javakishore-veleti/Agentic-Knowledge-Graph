@@ -258,3 +258,198 @@ class GetMioLineageResp(RespDto):
 @dataclass(slots=True)
 class GetMioLineageCtx(BaseCtx[GetMioLineageReq, GetMioLineageResp]):
     pass
+
+
+# ================================================================ workflow master
+
+
+class WorkflowParamDto(ItemDto):
+    name: str
+    label: str
+    kind: str = "text"
+    required: bool = False
+    default: Any | None = None
+    options: list[str] | None = None
+    help: str | None = None
+
+
+class WorkflowDto(ItemDto):
+    workflow_id: uuid.UUID
+    code: str
+    name: str
+    description: str
+    domain: str
+    sub_domain: str
+    default_tech_stack: str
+    purpose: str
+    params_json: list[WorkflowParamDto]
+    is_active: bool
+
+
+class MioWorkflowDto(ItemDto):
+    """A workflow attached to a MIO, joined to the master so the portal gets the
+    parameter definitions in the same read."""
+
+    workflow_id: uuid.UUID | None
+    workflow_code: str
+    workflow_name: str | None
+    description: str | None
+    default_tech_stack: str | None
+    purpose: str
+    enabled: bool
+    params_json: list[WorkflowParamDto] = []
+    param_overrides_json: dict[str, Any] = {}
+    #: False when the association points at a missing or deactivated workflow. The portal
+    #: must not offer a trigger button for one of these.
+    workflow_active: bool = False
+
+
+class ListWorkflowsReq(ReqDto):
+    limit: int | None = None
+    cursor: str | None = None
+    domain: str | None = None
+    active_only: bool = True
+    q: str | None = None
+
+
+class ListWorkflowsResp(RespDto):
+    page: PageDto
+    items: list[WorkflowDto]
+
+
+@dataclass(slots=True)
+class ListWorkflowsCtx(BaseCtx[ListWorkflowsReq, ListWorkflowsResp]):
+    pass
+
+
+# ================================================================ MIO CRUD
+
+
+class CreateMioReq(ReqDto):
+    domain_code: str = Field(min_length=1)
+    code: str = Field(min_length=1, max_length=127)
+    name: str = Field(min_length=1)
+    description: str = ""
+    tech_stack: str = Field(min_length=1)
+    dataset_ids: list[uuid.UUID] = []
+
+
+class CreateMioResp(RespDto):
+    mio: MioDto
+
+
+@dataclass(slots=True)
+class CreateMioCtx(BaseCtx[CreateMioReq, CreateMioResp]):
+    pass
+
+
+class UpdateMioReq(ReqDto):
+    mio_id: uuid.UUID
+    name: str | None = None
+    description: str | None = None
+    tech_stack: str | None = None
+    state: str | None = None
+    pinned_version: str | None = None
+
+
+class UpdateMioResp(RespDto):
+    mio: MioDto
+
+
+@dataclass(slots=True)
+class UpdateMioCtx(BaseCtx[UpdateMioReq, UpdateMioResp]):
+    pass
+
+
+class DeleteMioReq(ReqDto):
+    mio_id: uuid.UUID
+
+
+class DeleteMioResp(RespDto):
+    mio_id: uuid.UUID
+    deleted: bool
+
+
+@dataclass(slots=True)
+class DeleteMioCtx(BaseCtx[DeleteMioReq, DeleteMioResp]):
+    pass
+
+
+# ================================================================ MIO <-> workflow
+
+
+class ListMioWorkflowsReq(ReqDto):
+    mio_id: uuid.UUID
+
+
+class ListMioWorkflowsResp(RespDto):
+    mio_id: uuid.UUID
+    items: list[MioWorkflowDto]
+
+
+@dataclass(slots=True)
+class ListMioWorkflowsCtx(BaseCtx[ListMioWorkflowsReq, ListMioWorkflowsResp]):
+    pass
+
+
+class AttachWorkflowReq(ReqDto):
+    mio_id: uuid.UUID
+    workflow_id: uuid.UUID
+    purpose: str = "build"
+    param_overrides: dict[str, Any] = {}
+
+
+class AttachWorkflowResp(RespDto):
+    mio_id: uuid.UUID
+    workflow_id: uuid.UUID
+    attached: bool
+
+
+@dataclass(slots=True)
+class AttachWorkflowCtx(BaseCtx[AttachWorkflowReq, AttachWorkflowResp]):
+    pass
+
+
+class DetachWorkflowReq(ReqDto):
+    mio_id: uuid.UUID
+    workflow_id: uuid.UUID
+
+
+class DetachWorkflowResp(RespDto):
+    mio_id: uuid.UUID
+    workflow_id: uuid.UUID
+    detached: bool
+
+
+@dataclass(slots=True)
+class DetachWorkflowCtx(BaseCtx[DetachWorkflowReq, DetachWorkflowResp]):
+    pass
+
+
+# ================================================================ invoke
+
+
+class InvokeMioWorkflowReq(ReqDto):
+    mio_id: uuid.UUID
+    workflow_id: uuid.UUID
+    input_data: dict[str, Any] = {}
+    idempotency_key: str | None = None
+
+
+class InvokeMioWorkflowResp(RespDto):
+    """The catalog records the execution and hands the engine choice to the orchestrator.
+
+    `wf_ref_id` is absent until the engine accepts the submission, which is what makes a
+    failed submit visible rather than silent (ADR-008).
+    """
+
+    mio_id: uuid.UUID
+    workflow_id: uuid.UUID
+    data_instance_exec_id: uuid.UUID
+    status: str
+    wf_ref_id: str | None = None
+
+
+@dataclass(slots=True)
+class InvokeMioWorkflowCtx(BaseCtx[InvokeMioWorkflowReq, InvokeMioWorkflowResp]):
+    pass
