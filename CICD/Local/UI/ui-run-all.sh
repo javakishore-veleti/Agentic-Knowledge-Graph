@@ -13,10 +13,20 @@ cleanup() {
 trap cleanup INT TERM EXIT
 
 started=0
+ours=0
+foreign=0
 for app in $APPS; do
   port="$(port_of "$app")"
   if port_busy "$port"; then
-    echo "!! port $port already in use; $app not started" >&2
+    pid="$(listener_pid "$port")"
+    if is_our_server "$app"; then
+      echo "==  $app is already serving on http://localhost:$port (pid $pid)"
+      ours=$((ours + 1))
+    else
+      echo "!! port $port is held by an unrelated process (pid $pid):" >&2
+      ps -o command= -p "$pid" 2>/dev/null | cut -c1-90 | sed 's/^/     /' >&2
+      foreign=$((foreign + 1))
+    fi
     continue
   fi
   echo "==> $app  http://localhost:$port"
@@ -26,7 +36,26 @@ for app in $APPS; do
 done
 
 if [ "$started" -eq 0 ]; then
-  echo "nothing started" >&2
-  exit 1
+  echo ""
+  if [ "$foreign" -gt 0 ]; then
+    echo "Nothing started: $foreign port(s) are held by processes that are not ours." >&2
+    echo "Free the port, or change the port in CICD/Local/UI/_ports.sh." >&2
+    exit 1
+  fi
+  # Every app is already up as a detached server. The intent -- "the UIs are running" --
+  # is already satisfied, so this is not an error.
+  echo "All portals are already running (started detached). Nothing to do."
+  for app in $APPS; do echo "  $app  http://localhost:$(port_of "$app")"; done
+  echo ""
+  echo "To take them over in the foreground instead:"
+  echo "  npm run local:ui:stop-all && npm run local:ui:run-all"
+  exit 0
 fi
+
+if [ "$ours" -gt 0 ]; then
+  echo ""
+  echo "note: $ours portal(s) were already running detached and were left alone."
+fi
+echo ""
+echo "Ctrl-C stops everything started here."
 wait

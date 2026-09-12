@@ -62,3 +62,17 @@ app_pid() {
   [ -f "$f" ] && rm -f "$f"
   return 1
 }
+
+# Is the process listening on this app's port one of OUR dev servers, or something
+# unrelated that happens to have taken the port? The difference decides whether the
+# right advice is "stop-all" or "free that port yourself".
+is_our_server() {
+  local pid cmd
+  pid="$(listener_pid "$(port_of "$1")")"
+  [ -n "$pid" ] || return 1
+  cmd="$(ps -o command= -p "$pid" 2>/dev/null || true)"
+  case "$cmd" in
+    *ng*serve*|*angular*|*node*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
