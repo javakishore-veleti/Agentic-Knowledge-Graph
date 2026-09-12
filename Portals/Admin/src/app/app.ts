@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Api } from './core/api';
+import { environment } from '../environments/environment';
 
 interface TopNavItem {
   path: string;
@@ -20,6 +21,9 @@ export class App {
   private readonly api = inject(Api);
   readonly tenant = this.api.tenant;
   readonly env = this.api.env;
+  /** Nothing on screen said the portal was running on mock data, so a demo looked like a
+   *  live system until something failed to persist. */
+  readonly usingMock = signal(environment.useMock);
 
   readonly nav = signal<TopNavItem[]>([
     { path: '/domains', label: 'Domains' },

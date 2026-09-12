@@ -9,9 +9,11 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from .api import (
-    app_endpoint_router, catalog_router, dataset_endpoint_router, workflow_router,
+    app_endpoint_router, catalog_router, dataset_endpoint_router,
+    initial_data_router, workflow_router,
 )
 from .bootstrap import register_all
+from .purposes.api import purpose_router
 from .common.errors import ServiceError
 from .common.object_factory import SERVICE_FACTORY
 from .config import settings
@@ -90,3 +92,5 @@ app.include_router(catalog_router)
 app.include_router(workflow_router)
 app.include_router(dataset_endpoint_router)
 app.include_router(app_endpoint_router)
+app.include_router(initial_data_router)
+app.include_router(purpose_router)

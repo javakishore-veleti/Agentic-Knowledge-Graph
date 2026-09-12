@@ -30,5 +30,10 @@ class Settings(BaseSettings):
     # --- integration ---
     orchestrator_url: str = "http://localhost:8002"
 
+    #: "inline" seeds in-process; "workflow" hands it to the orchestrator and waits for
+    #: the DAG to report back. Local defaults to inline so a fresh checkout works before
+    #: Airflow is running.
+    initial_data_mode: str = "inline"
+
 
 settings = Settings()

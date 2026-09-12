@@ -243,9 +243,32 @@ export class MockCatalogApi extends CatalogApi {
       (!f.q || (m.name + m.code).toLowerCase().includes(f.q.toLowerCase())))));
   }
 
-  /** In-memory so the Administration screen behaves without a backend: loading an entity
-   *  fills it, a second press reports already_loaded, and prerequisites are enforced. */
-  private loaded_ = new Map<string, { count: number; at: string }>();
+  /** Persisted so the Administration screen behaves like the real thing without a
+   *  backend: loading an entity fills it, a second press reports already_loaded, and the
+   *  result survives a refresh.
+   *
+   *  It lives in localStorage because an in-memory Map made a completed load vanish on
+   *  reload, which reads as the load having failed. The real implementation persists in
+   *  catalog.initial_data_tracker; this only has to be convincing enough not to mislead.
+   *  Wrapped in try/catch: storage throws in private windows and is simply absent in
+   *  some embedded views. */
+  private static readonly LOADED_KEY = 'akg.mock.initialData';
+
+  private readLoaded(): Record<string, { count: number; at: string }> {
+    try {
+      return JSON.parse(localStorage.getItem(MockCatalogApi.LOADED_KEY) ?? '{}');
+    } catch {
+      return {};
+    }
+  }
+
+  private writeLoaded(state: Record<string, { count: number; at: string }>): void {
+    try {
+      localStorage.setItem(MockCatalogApi.LOADED_KEY, JSON.stringify(state));
+    } catch {
+      // Nothing to do: the screen still works, it just forgets on reload.
+    }
+  }
 
   initialDataStatus(): Observable<{ items: InitialDataStatusDto[] }> {
     const spec: [InitialDataEntity, number, InitialDataEntity | null, number][] = [
@@ -257,7 +280,7 @@ export class MockCatalogApi extends CatalogApi {
     ];
     return of({
       items: spec.map(([entity, order, depends, seedCount]) => {
-        const done = this.loaded_.get(entity);
+        const done = this.readLoaded()[entity];
         return {
           entity, load_order: order, depends_on: depends,
           row_count: done ? done.count : (entity === 'endpoints' ? 2 : 0),
@@ -277,16 +300,18 @@ export class MockCatalogApi extends CatalogApi {
     const deps: Record<string, string | undefined> = {
       datasets: 'domains', workflows: 'purposes',
     };
+    const state = this.readLoaded();
     const need = deps[entity];
-    if (need && !this.loaded_.has(need)) {
+    if (need && !state[need]) {
       return of({ entity: entity as InitialDataEntity, claimed: false,
                   reason: `requires_${need}` });
     }
-    if (this.loaded_.has(entity) && !force) {
+    if (state[entity] && !force) {
       return of({ entity: entity as InitialDataEntity, claimed: false,
                   reason: 'already_loaded' });
     }
-    this.loaded_.set(entity, { count: counts[entity] ?? 0, at: new Date().toISOString() });
+    state[entity] = { count: counts[entity] ?? 0, at: new Date().toISOString() };
+    this.writeLoaded(state);
     return of({ entity: entity as InitialDataEntity, claimed: true, reason: 'claimed',
                 tracker_id: crypto.randomUUID() });
   }

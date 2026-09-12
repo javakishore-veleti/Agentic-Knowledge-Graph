@@ -46,11 +46,65 @@ def _imports(path: Path) -> set[str]:
 def test_no_package_imports_what_it_must_not() -> None:
     violations: list[str] = []
     for pkg, forbidden in FORBIDDEN.items():
-        for path in (SRC / pkg).rglob("*.py"):
+        root = SRC / pkg
+        if not root.exists():
+            continue
+        for path in root.rglob("*.py"):
             bad = _imports(path) & forbidden
             if bad:
                 violations.append(f"{pkg}/{path.name} imports {sorted(bad)}")
     assert not violations, "layering violations:\n  " + "\n  ".join(violations)
+
+
+#: Feature packages carry their own api/service/dao/dtos (ADR-018). The same rules apply
+#: inside each, so the check runs per feature rather than once over a shared tree.
+FEATURES = ("purposes", "domains", "endpoints", "datasets", "workflows")
+
+
+def _feature_imports(path: Path) -> set[str]:
+    """Layer names this module imports from, relative or absolute."""
+    tree = ast.parse(path.read_text())
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            parts = [p for p in (node.module or "").split(".") if p]
+            found.update(parts)
+    return found
+
+
+def test_feature_packages_keep_the_same_layering() -> None:
+    """A feature's api must not reach its own dao, and nothing may touch entities."""
+    violations: list[str] = []
+    for feature in FEATURES:
+        root = SRC / feature
+        if not root.exists():
+            continue
+        for layer, forbidden in (("api", {"dao", "entities"}),
+                                 ("service", {"entities"}),
+                                 ("dtos", {"dao", "service", "api", "entities"})):
+            layer_dir = root / layer
+            if not layer_dir.exists():
+                continue
+            for path in layer_dir.rglob("*.py"):
+                bad = _feature_imports(path) & forbidden
+                if bad:
+                    violations.append(f"{feature}/{layer}/{path.name} imports {sorted(bad)}")
+    assert not violations, "feature layering violations:\n  " + "\n  ".join(violations)
+
+
+def test_every_feature_has_the_four_layers() -> None:
+    """A feature package is api + service + dao + dtos. A missing one usually means logic
+    landed in a layer that should not hold it."""
+    incomplete = []
+    for feature in FEATURES:
+        root = SRC / feature
+        if not root.exists() or not any(root.rglob("*.py")):
+            continue
+        missing = [layer for layer in ("api", "service", "dao", "dtos")
+                   if not (root / layer).exists()]
+        if missing:
+            incomplete.append(f"{feature} missing {missing}")
+    assert not incomplete, f"incomplete feature packages: {incomplete}"
 
 
 def test_only_dao_touches_the_orm() -> None:

@@ -31,6 +31,12 @@
     </nav>
 
     <div class="topbar-right">
+      @if (usingMock()) {
+        <span class="env-badge env-mock"
+              title="No backend: data is in-memory and stored per browser. Set useMock to false in src/environments/environment.ts to use the DataCatalog service.">
+          mock data
+        </span>
+      }
       <span class="env-badge" [class.env-local]="env() === 'local'">{{ env() }}</span>
       <span class="tenant">{{ tenant() }}</span>
       <span class="avatar" aria-hidden="true">KV</span>
