@@ -1,4 +1,4 @@
-"""SQLAlchemy models.
+"""SQLAlchemy entity mappings. DAO-private (ADR-010).
 
 The schema is owned by the SQL migrations in CICD/Local/Postgres/init, not generated
 from these classes. The constraints that matter -- one CDC instance per MIO, no

@@ -52,9 +52,17 @@ def test_list_domains(client: TestClient) -> None:
     assert r.json()["page"]["total"] >= 1
 
 
+def test_mio_response_does_not_echo_the_tenant(client: TestClient) -> None:
+    """A client already knows its tenant; echoing it is noise, and the view carries it."""
+    r = client.get("/api/v1/mios")
+    assert r.status_code == 200, r.text
+    for item in r.json()["items"]:
+        assert "tenant_id" not in item
+
+
 def test_list_mios_uses_the_overview_view(client: TestClient) -> None:
     r = client.get("/api/v1/mios")
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     items = r.json()["items"]
     assert items, "expected the seeded MIO"
     m = items[0]
@@ -66,7 +74,7 @@ def test_list_mios_uses_the_overview_view(client: TestClient) -> None:
 
 def test_app_endpoint_response_cannot_carry_a_credential(client: TestClient) -> None:
     """The contract, not just the data: no credential-shaped field exists."""
-    from data_catalog.schemas import AppEndpointOut
+    from data_catalog.dtos.catalog_dtos import AppEndpointDto as AppEndpointOut
 
     forbidden = {"password", "pwd", "secret", "token", "api_key", "apikey",
                  "connection_string", "sas_token", "access_key"}

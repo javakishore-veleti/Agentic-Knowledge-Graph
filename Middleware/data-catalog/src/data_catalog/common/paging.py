@@ -1,8 +1,4 @@
-"""Opaque cursor helpers.
-
-Offset pagination shifts rows under concurrent inserts, so a client paging a growing
-table silently skips records. The cursor encodes the sort key of the last row seen.
-"""
+"""Opaque cursor paging. Offsets shift under concurrent inserts and silently skip rows."""
 
 from __future__ import annotations
 
@@ -26,12 +22,10 @@ def decode_cursor(cursor: str | None) -> dict[str, Any] | None:
         pad = "=" * (-len(cursor) % 4)
         return json.loads(base64.urlsafe_b64decode(cursor + pad))
     except Exception:
-        # A malformed cursor is the client's problem to see, not something to silently
-        # treat as "start from the beginning" -- that would re-serve the whole table.
+        # Not silently treated as "start over": that would re-serve the whole table and
+        # look like success.
         raise ValueError("cursor is not a valid pagination token") from None
 
 
 def clamp_limit(limit: int | None) -> int:
-    if limit is None:
-        return DEFAULT_LIMIT
-    return max(1, min(limit, MAX_LIMIT))
+    return DEFAULT_LIMIT if limit is None else max(1, min(limit, MAX_LIMIT))
