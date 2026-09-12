@@ -1,0 +1,131 @@
+@if (loading()) {
+  <p class="muted tiny">Loading…</p>
+} @else if (notFound()) {
+  <div class="card card-pad">
+    <h1>Dataset not found</h1>
+    <p class="muted tiny">No dataset with that id. <a routerLink="/datasets">Back to the list</a>.</p>
+  </div>
+} @else if (dataset(); as d) {
+  <div class="stack">
+    <div class="crumb tiny">
+      <a routerLink="/datasets">DataSets</a> <span class="muted">/</span>
+      <span class="mono">{{ d.code }}</span>
+    </div>
+
+    <div class="card card-pad head">
+      <div class="row-between">
+        <div>
+          <h1>{{ d.name }}</h1>
+          <p class="muted tiny">{{ d.description || 'No description.' }}</p>
+        </div>
+        @if (shipsEdges(d)) {
+          <span class="chip chip-ok">{{ d.adapter }} · edges shipped, 0 model calls</span>
+        } @else {
+          <span class="chip chip-warn">{{ d.adapter }} · extraction cost reported separately</span>
+        }
+      </div>
+      <div class="summary">
+        <div><span class="metric-label">Source version</span>
+             <span class="mono">{{ d.source_version }}</span></div>
+        <div><span class="metric-label">Sub-domain</span>
+             <span class="mono">{{ d.sub_domain || '—' }}</span></div>
+        <div><span class="metric-label">Locations</span>
+             <span class="mono">{{ locations().length }}</span></div>
+        <div><span class="metric-label">Stored</span>
+             <span class="mono">{{ humanBytes(stored()) }}</span></div>
+        <div><span class="metric-label">Acquired</span>
+             <span class="mono">{{ d.created_at | date: 'short' }}</span></div>
+      </div>
+    </div>
+
+    @if (notice(); as n) { <div class="notice">{{ n }}</div> }
+
+    <app-accordion title="Source versions" [badge]="versions().length" [startOpen]="true"
+                   hint="immutable once acquired">
+      <p class="muted tiny">
+        A new version is a new row rather than an edit, so a MIO built last month can still
+        name exactly what it read.
+      </p>
+      <table class="data mini" style="margin-top: .75rem">
+        <thead><tr><th>Version</th><th>Adapter</th><th>Acquired</th><th></th></tr></thead>
+        <tbody>
+          @for (v of versions(); track v.dataset_id; let first = $first) {
+            <tr>
+              <td class="mono">{{ v.source_version }}</td>
+              <td class="mono">{{ v.adapter }}</td>
+              <td class="tiny muted">{{ v.created_at | date: 'medium' }}</td>
+              <td>@if (first) { <span class="chip chip-ok">newest</span> }</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </app-accordion>
+
+    <app-accordion title="Where it comes from" [badge]="sources().length" [startOpen]="true">
+      @for (l of sources(); track l.dataset_endpoint_id) {
+        <div class="loc">
+          <div class="row-between">
+            <span class="mono loc-uri">{{ l.uri }}</span>
+            <span class="chip chip-neutral">{{ l.location_kind }}</span>
+          </div>
+          <div class="muted tiny">External origin — no registered endpoint, and none needed.</div>
+        </div>
+      } @empty {
+        <div class="warn tiny">
+          No source recorded. Nobody can rebuild this dataset, and that stays invisible
+          until a rebuild is attempted.
+        </div>
+      }
+    </app-accordion>
+
+    <app-accordion title="Endpoints it is stored in" [badge]="destinations().length"
+                   [startOpen]="true"
+                   [hint]="unavailable() ? unavailable() + ' not available' : 'all available'">
+      @for (l of destinations(); track l.dataset_endpoint_id) {
+        <div class="loc">
+          <div class="row-between">
+            <span class="mono loc-uri">{{ l.uri }}</span>
+            <span [class]="locationStateChip(l.state)">{{ l.state }}</span>
+          </div>
+          <div class="row-between loc-foot">
+            <span class="muted tiny">
+              {{ roleLabel(l.role) }} · {{ l.location_kind }}
+              @if (l.bytes) { · {{ humanBytes(l.bytes) }} }
+              @if (l.is_primary) { · primary }
+            </span>
+            @if (canAcquire(l)) {
+              <button class="btn btn-primary" (click)="acquire(l)">Acquire</button>
+            } @else if (l.state === 'syncing') {
+              <span class="muted tiny">acquisition running…</span>
+            } @else {
+              <span class="muted tiny">data present</span>
+            }
+          </div>
+          @if (l.state === 'failed') {
+            <div class="warn tiny">
+              Last acquisition failed. Retrying needs no force, because failed is not
+              available.
+            </div>
+          }
+        </div>
+      } @empty {
+        <p class="muted tiny">No destination registered yet.</p>
+      }
+    </app-accordion>
+
+    <app-accordion title="Workflows" hint="what maintains this dataset">
+      <p class="muted tiny">
+        Workflows attach to a <strong>MIO</strong> rather than to a dataset: a dataset is
+        source material, and what gets built from it is the thing with a lifecycle. Open
+        the MIO that reads this dataset to trigger one.
+      </p>
+    </app-accordion>
+
+    <app-accordion title="MIOs built from it" hint="not wired yet">
+      <p class="muted tiny">
+        Needs a reverse lookup the catalog does not expose yet. Guessing it in the portal
+        would be wrong the moment a second writer appears.
+      </p>
+    </app-accordion>
+  </div>
+}

@@ -13,6 +13,12 @@ export const routes: Routes = [
     title: 'DataSets · Knowledge Admin',
   },
   {
+    path: 'datasets/:id',
+    loadComponent: () =>
+      import('./pages/dataset-detail/dataset-detail').then((m) => m.DatasetDetail),
+    title: 'Dataset · Knowledge Admin',
+  },
+  {
     path: 'mios',
     loadComponent: () => import('./pages/mios/mios').then((m) => m.Mios),
     title: 'MIOs · Knowledge Admin',

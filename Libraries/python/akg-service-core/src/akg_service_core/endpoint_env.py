@@ -29,6 +29,10 @@ class ResolvedEndpoint:
     values: dict[str, str] = field(default_factory=dict, repr=False)
     missing: tuple[str, ...] = ()
     invalid: tuple[str, ...] = ()
+    #: Keys that fell back to a declared default because no variable was set. Reported
+    #: separately from `resolved` so "it worked" and "it worked by default" are
+    #: distinguishable -- they behave the same until the day the default is wrong.
+    defaulted: tuple[str, ...] = ()
 
     @property
     def complete(self) -> bool:
@@ -48,6 +52,7 @@ class ResolvedEndpoint:
             "code": self.code,
             "complete": self.complete,
             "resolved": sorted(self.values),
+            "defaulted": list(self.defaulted),
             "missing": list(self.missing),
             "invalid": list(self.invalid),
         }
@@ -58,18 +63,27 @@ class ResolvedEndpoint:
 
 
 def resolve_endpoint(
-    code: str, config_env: dict[str, str], environ: dict[str, str] | None = None
+    code: str,
+    config_env: dict[str, str],
+    environ: dict[str, str] | None = None,
+    defaults: dict[str, str] | None = None,
 ) -> ResolvedEndpoint:
-    """Read each declared variable from the environment.
+    """Read each declared variable from the environment, falling back to a declared default.
 
-    A variable named but absent is reported, not defaulted: silently substituting an empty
-    string produces a connection attempt against the wrong place, which fails later and
-    further away.
+    Defaults exist so a fresh checkout works with nothing configured: a filesystem root
+    under the user's home is a sensible guess, and making someone set a variable before
+    anything runs is friction for no safety.
+
+    A default is refused for anything secret-shaped. Substituting a default credential
+    would connect as the wrong identity, or with a blank one, and succeed quietly enough
+    that the mistake surfaces somewhere else entirely. Missing secrets stay missing.
     """
     env = os.environ if environ is None else environ
+    defaults = defaults or {}
     values: dict[str, str] = {}
     missing: list[str] = []
     invalid: list[str] = []
+    defaulted: list[str] = []
 
     for key, var_name in (config_env or {}).items():
         if not isinstance(var_name, str) or not ENV_NAME.match(var_name):
@@ -78,13 +92,29 @@ def resolve_endpoint(
             invalid.append(key)
             continue
         value = env.get(var_name)
-        if value is None or value == "":
-            missing.append(var_name)
-        else:
+        if value:
             values[key] = value
+            continue
+        fallback = defaults.get(key)
+        if fallback and key not in SECRET_KEYS:
+            values[key] = expand_path(fallback)
+            defaulted.append(key)
+        else:
+            missing.append(var_name)
 
-    return ResolvedEndpoint(code=code, values=values,
-                            missing=tuple(missing), invalid=tuple(invalid))
+    return ResolvedEndpoint(code=code, values=values, missing=tuple(missing),
+                            invalid=tuple(invalid), defaulted=tuple(defaulted))
+
+
+def expand_path(value: str) -> str:
+    """Expand ~ and $VARS in a filesystem default.
+
+    A default of "~/runtime_data/AKG/Local/FileSystem" has to become a real path on the
+    machine reading it; leaving the tilde produces a directory literally named "~".
+    """
+    if value.startswith("~") or "$" in value:
+        return os.path.expanduser(os.path.expandvars(value))
+    return value
 
 
 def redact(values: dict[str, str]) -> dict[str, str]:

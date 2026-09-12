@@ -53,7 +53,8 @@
           } @else {
             @for (versions of grouped(); track versions[0].dataset_id) {
               @for (d of versions; track d.dataset_id; let first = $first) {
-                <tr [class.version-row]="!first" class="clickable" (click)="open(versions)">
+                <tr [class.version-row]="!first" class="clickable"
+                    [routerLink]="['/datasets', d.dataset_id]">
                   <td>
                     @if (first) {
                       <div class="cell-title">{{ d.name }}</div>
@@ -97,106 +98,3 @@
                (next)="next()" (prev)="prev()" />
   </div>
 </div>
-
-<!-- ============================================ dataset detail -->
-@if (selected(); as d) {
-  <div class="drawer-scrim" (click)="close()"></div>
-  <aside class="drawer" role="dialog" [attr.aria-label]="d.name">
-    <header class="drawer-head">
-      <div>
-        <h2>{{ d.name }}</h2>
-        <p class="muted tiny mono">{{ d.code }} · {{ d.sub_domain || '—' }}</p>
-      </div>
-      <button class="btn btn-secondary" (click)="close()">Close</button>
-    </header>
-
-    <div class="drawer-body stack">
-      @if (notice(); as n) { <div class="notice">{{ n }}</div> }
-
-      @if (d.description) { <p class="muted tiny">{{ d.description }}</p> }
-
-      <div>
-        <span class="metric-label">Source versions</span>
-        <p class="muted tiny" style="margin: .25rem 0 .5rem">
-          Immutable once acquired: a new version is a new row, so a MIO built last month
-          can still name exactly what it read.
-        </p>
-        @for (v of selectedVersions(); track v.dataset_id; let first = $first) {
-          <div class="ver">
-            <span class="mono">{{ v.source_version }}</span>
-            @if (first) { <span class="chip chip-ok">newest</span> }
-            <span class="spacer"></span>
-            <span class="muted tiny">{{ v.created_at | date: 'short' }}</span>
-          </div>
-        }
-      </div>
-
-      <div>
-        <span class="metric-label">Where it comes from</span>
-        @if (locationsLoading()) {
-          <p class="muted tiny">Loading…</p>
-        } @else {
-          @for (l of sources(); track l.dataset_endpoint_id) {
-            <div class="loc">
-              <div class="row-between">
-                <span class="mono loc-uri">{{ l.uri }}</span>
-                <span class="chip chip-neutral">{{ l.location_kind }}</span>
-              </div>
-              <div class="muted tiny">
-                External origin — no registered endpoint, and none needed.
-              </div>
-            </div>
-          } @empty {
-            <div class="warn tiny">
-              No source recorded. Nobody can rebuild this dataset, and that only becomes
-              visible when a rebuild is attempted.
-            </div>
-          }
-        }
-      </div>
-
-      <div>
-        <span class="metric-label">
-          Where it is stored
-          @if (destinations().length) {
-            <span class="muted"> · {{ humanBytes(totalStored()) }} held</span>
-          }
-        </span>
-        @for (l of destinations(); track l.dataset_endpoint_id) {
-          <div class="loc">
-            <div class="row-between">
-              <span class="mono loc-uri">{{ l.uri }}</span>
-              <span [class]="locationStateChip(l.state)">{{ l.state }}</span>
-            </div>
-            <div class="row-between loc-foot">
-              <span class="muted tiny">
-                {{ roleLabel(l.role) }} · {{ l.location_kind }}
-                @if (l.bytes) { · {{ humanBytes(l.bytes) }} }
-                @if (l.is_primary) { · primary }
-              </span>
-              @if (canAcquire(l)) {
-                <button class="btn btn-primary" (click)="acquire(l)">Acquire</button>
-              } @else if (l.state === 'syncing') {
-                <span class="muted tiny">acquisition running…</span>
-              } @else {
-                <span class="muted tiny">data present</span>
-              }
-            </div>
-            @if (l.state === 'failed') {
-              <div class="warn tiny">
-                Last acquisition failed. Retrying is allowed without forcing, because
-                failed is not available.
-              </div>
-            }
-          </div>
-        } @empty {
-          <p class="muted tiny">No destination registered yet.</p>
-        }
-      </div>
-    </div>
-
-    <footer class="drawer-foot">
-      <span class="muted tiny mono">{{ d.dataset_id }}</span>
-    </footer>
-  </aside>
-}

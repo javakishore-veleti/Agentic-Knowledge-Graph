@@ -1,0 +1,29 @@
+.crumb { display: flex; gap: .375rem; align-items: center; }
+.head h1 { font-size: 1.375rem; }
+.summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem; margin-top: 1.125rem; padding-top: 1rem; border-top: 1px solid var(--line);
+}
+.summary > div { display: flex; flex-direction: column; gap: .3125rem; align-items: flex-start; }
+.metric-label {
+  font-size: .6875rem; font-weight: 680; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-500);
+}
+table.data.mini th, table.data.mini td { padding: .4375rem .625rem; }
+.loc {
+  padding: .625rem .75rem; margin-top: .5rem;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+.loc:first-child { margin-top: 0; }
+.loc-uri { font-size: .75rem; word-break: break-all; }
+.loc-foot { margin-top: .4375rem; }
+.notice {
+  padding: .625rem .75rem; border-radius: var(--radius-sm);
+  background: var(--brand-050); border: 1px solid var(--brand-100);
+  font-size: .8125rem; color: var(--ink-700);
+}
+.warn {
+  margin-top: .4375rem; padding: .4375rem .625rem; border-radius: var(--radius-sm);
+  background: var(--amber-100); color: var(--amber-700);
+}
