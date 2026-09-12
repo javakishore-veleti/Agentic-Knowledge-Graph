@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     tenant_id: str = "reference"
     api_prefix: str = "/api/v1"
 
-    catalog_url: str = "http://localhost:8001"
+    catalog_url: str = "http://localhost:9001"
 
     # Airflow's stable REST API.
     airflow_url: str = "http://localhost:8080"
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     #: Where Airflow should call back. Must be reachable FROM the Airflow container, which
     #: is not the same as reachable from this process -- inside Compose that is a service
     #: name, not localhost.
-    catalog_callback_url: str = "http://akg-data-catalog:8001"
+    catalog_callback_url: str = "http://akg-data-catalog:9001"
 
     acquisition_dag_id: str = "data_mgmt.acquisition.acquire_dataset_endpoint"
     export_dag_id: str = "data_mgmt.exports.export_dataset_endpoint"

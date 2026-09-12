@@ -53,6 +53,14 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "mock": {
+              "fileReplacements": [
+                {
+                  "replace": "Admin/src/environments/environment.ts",
+                  "with": "Admin/src/environments/environment.mock.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -65,6 +73,9 @@
             },
             "development": {
               "buildTarget": "Admin:build:development"
+            },
+            "mock": {
+              "buildTarget": "Admin:build:mock"
             }
           },
           "defaultConfiguration": "development"

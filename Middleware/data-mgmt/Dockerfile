@@ -7,5 +7,5 @@ COPY Middleware/data-mgmt/src ./src
 RUN pip install --no-cache-dir /libs/akg-service-core && pip install --no-cache-dir .
 RUN useradd --create-home --uid 10001 akg
 USER akg
-EXPOSE 8002
-CMD ["uvicorn", "data_mgmt.app:app", "--host", "0.0.0.0", "--port", "8002"]
+EXPOSE 9002
+CMD ["uvicorn", "data_mgmt.app:app", "--host", "0.0.0.0", "--port", "9002"]

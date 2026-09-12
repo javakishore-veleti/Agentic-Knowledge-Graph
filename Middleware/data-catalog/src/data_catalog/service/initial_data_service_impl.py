@@ -13,11 +13,24 @@ from typing import Any
 
 from akg_service_core import ValidationError
 
-from ..common.object_factory import DAO_FACTORY
+from ..cache.i_app_cache_service import IAppCacheService
+from ..common.object_factory import DAO_FACTORY, SERVICE_FACTORY
 from ..config import settings
 from ..dao.i_initial_data_dao import IInitialDataDao
 from ..seed.reference_data import SEED_SETS
+from ..wf.catalog_wf import CACHE_DATASETS, CACHE_DOMAINS, CACHE_ENDPOINTS, CACHE_MIOS
 from .i_initial_data_service import IInitialDataService
+
+#: Which cached listings a seed invalidates. Seeding domains and then serving a cached
+#: empty domain list is the same failure that made a newly created MIO invisible: the
+#: write happened, the read did not know.
+_CACHES_TOUCHED: dict[str, tuple[str, ...]] = {
+    "domains": (CACHE_DOMAINS, CACHE_DATASETS, CACHE_MIOS),
+    "datasets": (CACHE_DATASETS, CACHE_MIOS),
+    "endpoints": (CACHE_ENDPOINTS,),
+    "purposes": (),
+    "workflows": (),
+}
 
 
 class InitialDataServiceImpl(IInitialDataService):
@@ -57,9 +70,24 @@ class InitialDataServiceImpl(IInitialDataService):
                          {"detail": f"{type(exc).__name__}"}, None)
             raise
         dao.complete(tracker_id, "SUCCEEDED", inserted, skipped, None, None)
+        self._invalidate(entity, tenant_id)
         return {"entity": entity, "claimed": True, "reason": "claimed",
                 "tracker_id": str(tracker_id), "mode": "inline",
                 "inserted": inserted, "skipped": skipped}
+
+    @staticmethod
+    def _invalidate(entity: str, tenant_id: str) -> None:
+        """Drop the listings the seed just made wrong.
+
+        Seeding domains invalidates datasets and MIOs too: their listings are filtered by
+        domain, so a cached page computed when no domain existed stays empty.
+        """
+        caches = _CACHES_TOUCHED.get(entity, ())
+        if not caches:
+            return
+        cache: IAppCacheService = SERVICE_FACTORY.get(IAppCacheService)
+        for name in caches:
+            cache.evict_all(name, tenant_id)
 
     def report(
         self, tracker_id: uuid.UUID, status: str, inserted: int, skipped: int,
@@ -70,4 +98,9 @@ class InitialDataServiceImpl(IInitialDataService):
         ok = DAO_FACTORY.get(IInitialDataDao).complete(
             tracker_id, status, inserted, skipped, error, wf_ref_id
         )
+        if status == "SUCCEEDED":
+            # The workflow path lands here instead of the inline one, and needs the same
+            # invalidation -- otherwise a DAG-driven seed is invisible in the portal.
+            for name in (CACHE_DOMAINS, CACHE_DATASETS, CACHE_ENDPOINTS, CACHE_MIOS):
+                SERVICE_FACTORY.get(IAppCacheService).evict_all(name, settings.tenant_id)
         return {"tracker_id": str(tracker_id), "updated": ok}

@@ -6,6 +6,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import (
@@ -29,6 +30,20 @@ app = FastAPI(
 )
 
 register_all()
+
+# The portal is served from another origin in development. Origins are listed rather than
+# wildcarded: "*" would also permit any site a developer happens to visit to call this API
+# from their browser, and this one can trigger workflows.
+_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+if _origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+        expose_headers=["x-trace-id"],
+    )
 
 
 @app.middleware("http")

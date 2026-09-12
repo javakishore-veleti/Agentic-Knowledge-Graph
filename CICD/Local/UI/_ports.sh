@@ -14,10 +14,19 @@ RUN_DIR="$REPO_ROOT/.local-run"
 
 APPS="Admin Customer"
 
+# AKG local port scheme (ADR-019)
+#   9001  data-catalog API
+#   9002  data-mgmt API
+#   9003  Admin portal
+#   9004  Customer portal
+# Chosen as a contiguous block starting at 9001 so every service is guessable from one
+# number, and away from 8000-8080 where Docker Desktop, Airflow and most other local
+# tooling already live -- 8001 was taken by Docker's own backend on the first attempt.
+
 port_of() {
   case "$1" in
-    Admin)    echo 4300 ;;
-    Customer) echo 4301 ;;
+    Admin)    echo 9003 ;;
+    Customer) echo 9004 ;;
     *) echo "unknown app: $1" >&2; return 1 ;;
   esac
 }

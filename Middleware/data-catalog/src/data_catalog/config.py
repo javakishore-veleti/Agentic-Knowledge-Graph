@@ -28,12 +28,18 @@ class Settings(BaseSettings):
     cache_default_ttl_seconds: int = 300
 
     # --- integration ---
-    orchestrator_url: str = "http://localhost:8002"
+    orchestrator_url: str = "http://localhost:9002"
 
     #: "inline" seeds in-process; "workflow" hands it to the orchestrator and waits for
     #: the DAG to report back. Local defaults to inline so a fresh checkout works before
     #: Airflow is running.
     initial_data_mode: str = "inline"
+
+    #: Origins allowed to call this API from a browser. The Angular dev server runs on a
+    #: different port, so without this every portal request fails as a CORS error with
+    #: nothing useful in the response. Production serves the portal behind the gateway on
+    #: one origin and needs none of this.
+    cors_origins: str = "http://localhost:9003,http://localhost:9004"
 
 
 settings = Settings()

@@ -1,9 +1,15 @@
-/** Local development.
+/** Local development against the real DataCatalog service.
  *
- * `useMock` keeps the portal usable when the middleware stack is not running. Set it to
- * false (or use environment.api.ts) to hit the real DataCatalog service on :8001. */
+ * Requires the stack: `npm run local:stack:up` starts Postgres, applies the migrations
+ * and runs the API on :8001. On a blank database every list is empty until
+ * Administration -> Initial Data has been run, which is the intended first-run
+ * experience rather than a fault.
+ *
+ * To work on the UI without any backend, use `ng serve --configuration mock`, which
+ * swaps in environment.mock.ts.
+ */
 export const environment = {
   production: false,
-  useMock: true,
-  catalogBaseUrl: 'http://localhost:8001',
+  useMock: false,
+  catalogBaseUrl: 'http://localhost:9001',
 };

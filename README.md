@@ -102,7 +102,7 @@ The Traces and Releases screens run on representative data, not a live pipeline.
 ```bash
 npm run local:docker:up-all      # Postgres+pgvector, Redpanda, Azurite, Redis, OTel, Airflow
 npm run local:catalog:test       # schema + API against a throwaway Postgres
-npm run local:ui:start-all       # Admin on :4300, Customer on :4301
+npm run local:ui:start-all       # Admin on :9003, Customer on :9004
 npm run local:ui:status-all
 ```
 
