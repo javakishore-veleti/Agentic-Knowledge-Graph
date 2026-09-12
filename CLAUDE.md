@@ -42,23 +42,39 @@ This repo's `pyproject.toml` pins exactly the upstream CPU deps (numpy, matplotl
 
 ### State of `poc/`
 
-**`poc/pipeline/*.py` are all 0-byte placeholders** — `parse_pubmed.py`, `build_graph4.py`,
-`embed_corpus3.py`, `consolidate_index.py`, `kg_ground3.py`…`kg_ground6.py` exist as empty
-files whose names were taken from the upstream `pipeline/` tier. There is no code in them.
-`poc/notebook/agentic_kg_40m.py` is likewise a 17-byte stub (it contains only its own
-filename); upstream that path is the jupytext source of the notebook.
+`poc/notebook/` holds the **complete upstream study**, as a jupytext pair. Both files are
+cell-for-cell identical (196 cells: 102 code, 94 markdown), and the notebook's code and
+markdown match upstream's:
 
-**`poc/notebook/agentic_kg_40m.ipynb` is the only real content**, and it is *not* the
-upstream notebook: 29 cells / 14 code cells, no stored outputs, zero cell overlap with
-upstream's 196-cell executed notebook. It is an independent laptop-scale walkthrough of the
-same narrative — parameters, corpus-ships-its-own-edges, MeSH as the ontology, CSR store
-instead of a graph database, grounding without a model touching an identifier, the refusal
-ladder, ranking terminals, a constrained yes/no/maybe posterior, and the walk-cite-or-refuse
-agent.
+| File | Role |
+|---|---|
+| `agentic_kg_40m.ipynb` | the artifact to read — 2.6 MB, 100 cells carrying stored outputs and figures inline |
+| `agentic_kg_40m.py` | percent-format jupytext source — 3,832 lines, no outputs; this is the one to diff and review |
 
-So treat `poc/` as a narrative demo plus an empty filename skeleton. When a PoC stage is
-needed, port from upstream `pipeline/` (or write it) rather than assuming the local file
-already holds it.
+Keep them paired (`jupytext --sync` after editing either). Do not hand-edit one and let the
+other drift; a code-review diff of the `.ipynb` JSON is unreadable.
+
+This is the **H100 tier**, not the CPU analysis tier: the notebook's parameters cell
+(`agentic_kg_40m.py:40`, tagged `parameters`, so it is papermill-injectable) points at
+`DATA_DIR = /mnt/data` and `PUBMED_FILES = 1334` — the full 2026 annual baseline — with
+`EMBED_MODEL = BAAI/bge-small-en-v1.5` (384-dim, chosen by measurement) and
+`VERIFIER_BASE = cross-encoder/nli-deberta-v3-base`. Executing it needs an H100 and the
+corpus on disk. It ships already executed, so read it without running anything.
+
+There is a cheap path for code changes: setting `SMOKE_TEST = True` in that parameters cell
+shrinks the run to `PUBMED_FILES = 12`, `MAX_SEED = 200`, `MAX_PATHS = 40`. Use it to catch
+errors before committing GPU time.
+
+**`poc/pipeline/*.py` are all still 0-byte placeholders** — `parse_pubmed.py`,
+`build_graph4.py`, `embed_corpus3.py`, `consolidate_index.py`, `kg_ground3.py`…`kg_ground6.py`
+are empty files whose names were taken from the upstream `pipeline/` tier. When a stage is
+needed, port it from upstream (or extract it from the notebook) rather than assuming the
+local file already holds it.
+
+Not mirrored locally at all: upstream's `analysis/` + `results/` CPU tier. That is the part
+that reproduces the published numbers in ~10s with only numpy and matplotlib, and it is the
+natural seed for PRD B's M14 eval gate — vendoring it would give the gate a regression
+baseline before any module exists.
 
 Two things in the study are **deliberately dropped** downstream, so do not port them forward
 from the article's diagram: the `refine / broaden` agent loop around the refusal ladder
