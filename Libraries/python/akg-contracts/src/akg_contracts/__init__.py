@@ -92,10 +92,11 @@ __all__ = [
 ]
 
 # Appended: orchestration contracts (ADR-008).
-from .enums import TechStack, WorkflowStatus  # noqa: E402
+from .enums import ExecutionModel, TechStack, WorkflowStatus  # noqa: E402
 from .workflows import WorkflowBatch, WorkflowExecution, WorkflowTrigger  # noqa: E402
 
 __all__ += [
+    "ExecutionModel",
     "TechStack",
     "WorkflowBatch",
     "WorkflowExecution",

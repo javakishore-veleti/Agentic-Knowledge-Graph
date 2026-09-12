@@ -4,14 +4,38 @@
  * before the portal ships, or the two definitions will drift -- which is the exact
  * failure the single-contracts-package rule exists to prevent (ADR-006). */
 
+/** Execution model decides what the portal may offer: only a triggered run can be
+ *  invoked. A stream has no run to start, and a human process is not finished by
+ *  compute (ADR-014). */
+export type ExecutionModel = 'triggered_run' | 'continuous' | 'human_process';
+
 export type TechStack =
-  | 'airflow'
-  | 'container_apps_job'
-  | 'azure_functions'
-  | 'azure_kafka_consumer'
-  | 'aws_step_functions'
-  | 'aws_lambda'
-  | 'aws_kafka_consumer';
+  // triggered runs
+  | 'airflow' | 'container_apps_job' | 'azure_functions' | 'azure_data_factory'
+  | 'azure_logic_apps' | 'aws_step_functions' | 'aws_lambda' | 'aws_emr' | 'aws_glue'
+  | 'aws_batch' | 'databricks_job' | 'custom_api'
+  // continuous: no discrete run
+  | 'azure_kafka_consumer' | 'aws_kafka_consumer' | 'aws_kinesis' | 'azure_event_hubs'
+  | 'spark_streaming'
+  // human process
+  | 'bpmn_camunda' | 'bpmn_flowable';
+
+const CONTINUOUS: TechStack[] = [
+  'azure_kafka_consumer', 'aws_kafka_consumer', 'aws_kinesis', 'azure_event_hubs',
+  'spark_streaming',
+];
+const HUMAN: TechStack[] = ['bpmn_camunda', 'bpmn_flowable'];
+
+export function executionModel(t: TechStack): ExecutionModel {
+  if (CONTINUOUS.includes(t)) return 'continuous';
+  if (HUMAN.includes(t)) return 'human_process';
+  return 'triggered_run';
+}
+
+/** Invoking a stream would log a PENDING execution that never completes. */
+export function isInvocable(t: TechStack): boolean {
+  return executionModel(t) === 'triggered_run';
+}
 
 export type WorkflowStatus =
   | 'PENDING' | 'SUBMITTED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
@@ -117,15 +141,27 @@ export function statusChip(s: WorkflowStatus): string {
 }
 
 export function stackLabel(t: TechStack): string {
-  return {
+  return ({
     airflow: 'Airflow',
     container_apps_job: 'Container Apps Job',
     azure_functions: 'Azure Functions',
-    azure_kafka_consumer: 'Azure Kafka',
+    azure_data_factory: 'Data Factory',
+    azure_logic_apps: 'Logic Apps',
     aws_step_functions: 'Step Functions',
     aws_lambda: 'Lambda',
-    aws_kafka_consumer: 'AWS Kafka',
-  }[t];
+    aws_emr: 'EMR',
+    aws_glue: 'Glue',
+    aws_batch: 'Batch',
+    databricks_job: 'Databricks',
+    custom_api: 'Custom API',
+    azure_kafka_consumer: 'Azure Kafka',
+    aws_kafka_consumer: 'AWS Kafka (MSK)',
+    aws_kinesis: 'Kinesis',
+    azure_event_hubs: 'Event Hubs',
+    spark_streaming: 'Spark Streaming',
+    bpmn_camunda: 'Camunda (BPMN)',
+    bpmn_flowable: 'Flowable (BPMN)',
+  } as Record<TechStack, string>)[t] ?? t;
 }
 
 /* ---- Quality gate and release control (PRD B B5) ---------------------- */

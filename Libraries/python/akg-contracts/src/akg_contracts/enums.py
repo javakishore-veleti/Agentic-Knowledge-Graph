@@ -85,21 +85,74 @@ class ArtifactKind(StrEnum):
     CATALOG = "catalog"
 
 
+class ExecutionModel(StrEnum):
+    """How an engine runs work. Determines what the portal may offer (ADR-014).
+
+    Mixing these under one "invoke" is a modelling error: a stream has no run to start,
+    and a human process is not finished by compute.
+    """
+
+    #: A start, an end, a run id. Invocable.
+    TRIGGERED_RUN = "triggered_run"
+    #: Always on. Monitored for health and lag, never invoked.
+    CONTINUOUS = "continuous"
+    #: Instances wait on people, sometimes for days.
+    HUMAN_PROCESS = "human_process"
+
+
 class TechStack(StrEnum):
     """Which engine actually executed a workflow.
 
-    The value is recorded per execution rather than assumed globally, because one
-    deployment may run some workflows on Airflow and others as jobs, and phase 2 adds AWS
-    engines without changing any caller (ADR-008).
+    Recorded per execution rather than assumed globally, because one deployment may run
+    some workflows on Airflow and others as jobs, and a second cloud adds engines without
+    changing any caller (ADR-008).
     """
 
+    # --- triggered runs ---
     AIRFLOW = "airflow"
     CONTAINER_APPS_JOB = "container_apps_job"
     AZURE_FUNCTIONS = "azure_functions"
-    AZURE_KAFKA_CONSUMER = "azure_kafka_consumer"
+    AZURE_DATA_FACTORY = "azure_data_factory"
+    AZURE_LOGIC_APPS = "azure_logic_apps"
     AWS_STEP_FUNCTIONS = "aws_step_functions"
     AWS_LAMBDA = "aws_lambda"
+    AWS_EMR = "aws_emr"
+    AWS_GLUE = "aws_glue"
+    AWS_BATCH = "aws_batch"
+    DATABRICKS_JOB = "databricks_job"
+    CUSTOM_API = "custom_api"
+
+    # --- continuous: no discrete run ---
+    AZURE_KAFKA_CONSUMER = "azure_kafka_consumer"
     AWS_KAFKA_CONSUMER = "aws_kafka_consumer"
+    AWS_KINESIS = "aws_kinesis"
+    AZURE_EVENT_HUBS = "azure_event_hubs"
+    SPARK_STREAMING = "spark_streaming"
+
+    # --- human process ---
+    BPMN_CAMUNDA = "bpmn_camunda"
+    BPMN_FLOWABLE = "bpmn_flowable"
+
+    @property
+    def execution_model(self) -> "ExecutionModel":
+        if self in _CONTINUOUS:
+            return ExecutionModel.CONTINUOUS
+        if self in _HUMAN:
+            return ExecutionModel.HUMAN_PROCESS
+        return ExecutionModel.TRIGGERED_RUN
+
+    @property
+    def invocable(self) -> bool:
+        """Only a triggered run can be invoked. Invoking a stream would log a PENDING
+        execution that never completes."""
+        return self.execution_model is ExecutionModel.TRIGGERED_RUN
+
+
+_CONTINUOUS = {
+    TechStack.AZURE_KAFKA_CONSUMER, TechStack.AWS_KAFKA_CONSUMER, TechStack.AWS_KINESIS,
+    TechStack.AZURE_EVENT_HUBS, TechStack.SPARK_STREAMING,
+}
+_HUMAN = {TechStack.BPMN_CAMUNDA, TechStack.BPMN_FLOWABLE}
 
 
 class WorkflowStatus(StrEnum):
