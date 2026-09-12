@@ -15,9 +15,12 @@
   </div>
 
   <div class="notice">
-    Connection details never include a credential. <span class="mono">secret_ref</span>
-    names a Key Vault entry; the secret itself is not stored in the catalog, so it cannot
-    appear on this page or in an API response.
+    Every endpoint names the <strong>environment variables</strong> that supply its values,
+    never the values themselves. One row therefore works in local, Azure and AWS — they
+    supply different values for the same names. Nothing secret is stored, so nothing
+    secret can appear on this page or in an API response.
+    <span class="muted">Authentication varies by where the code runs: a named profile on a
+    laptop, an attached role in EKS, keys in CI.</span>
   </div>
 
   @if (loading()) {
@@ -33,31 +36,45 @@
           <table class="data">
             <thead>
               <tr>
-                <th>Code</th><th>Environment</th><th>Host</th><th class="num">Port</th>
-                <th>Database</th><th>Options</th><th>Secret</th><th>Active</th>
+                <th>Code</th><th>Environment</th><th>Authentication</th><th>Host</th>
+                <th class="num">Port</th><th>Database</th><th>User</th>
+                <th>Reads these variables</th><th>Active</th>
               </tr>
             </thead>
             <tbody>
               @for (e of group[1]; track e.app_endpoint_id) {
                 <tr>
                   <td>
-                    <div class="cell-title">{{ e.name }}</div>
+                    <div class="cell-title">
+                      {{ e.name }}
+                      @if (e.is_system) {
+                        <span class="chip chip-neutral" title="Ships with the product; cannot be deleted, only deactivated">system</span>
+                      }
+                    </div>
                     <div class="mono">{{ e.code }}</div>
+                    @if (e.description) { <div class="muted tiny">{{ e.description }}</div> }
                   </td>
                   <td><span class="chip chip-neutral">{{ e.env }}</span></td>
+                  <td>
+                    @if (e.auth_mode) {
+                      <span class="chip chip-run">{{ authModeLabel(e.auth_mode) }}</span>
+                      @if (e.auth_ref) {
+                        <div class="mono tiny">{{ e.auth_ref }}</div>
+                      }
+                    } @else {
+                      <span class="muted tiny">—</span>
+                    }
+                  </td>
                   <td class="mono">{{ e.host }}</td>
                   <td class="num mono">{{ e.port ?? '—' }}</td>
                   <td class="mono">{{ e.database || '—' }}</td>
+                  <td class="mono">{{ e.username || '—' }}</td>
                   <td>
-                    @for (o of optionPairs(e); track o.k) {
-                      <span class="opt mono">{{ o.k }}={{ o.v }}</span>
+                    @for (v of envVars(e); track v.k) {
+                      <span class="opt mono" [title]="v.k">{{ v.v }}</span>
                     }
-                  </td>
-                  <td>
-                    @if (e.secret_ref) {
-                      <span class="mono tiny">{{ e.secret_ref }}</span>
-                    } @else {
-                      <span class="muted tiny">none needed</span>
+                    @for (o of optionPairs(e); track o.k) {
+                      <span class="opt opt-plain mono">{{ o.k }}={{ o.v }}</span>
                     }
                   </td>
                   <td>

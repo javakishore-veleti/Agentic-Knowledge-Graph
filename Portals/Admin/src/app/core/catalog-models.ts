@@ -106,6 +106,23 @@ export interface DataInstanceExecDto {
 
 /** Where a technology lives. No credential field exists here by design; secret_ref names
  *  a Key Vault entry, and the secret never enters the catalog. */
+export type AuthMode =
+  | 'env_vars' | 'aws_profile' | 'aws_role' | 'azure_cli' | 'azure_managed_identity'
+  | 'azure_client_secret' | 'gcp_adc' | 'anonymous';
+
+export function authModeLabel(m: AuthMode): string {
+  return ({
+    env_vars: 'Environment variables',
+    aws_profile: 'AWS named profile',
+    aws_role: 'AWS attached role',
+    azure_cli: 'az login token',
+    azure_managed_identity: 'Azure managed identity',
+    azure_client_secret: 'Azure service principal',
+    gcp_adc: 'GCP default credentials',
+    anonymous: 'No credential',
+  } as Record<AuthMode, string>)[m] ?? m;
+}
+
 export interface AppEndpointDto {
   app_endpoint_id: string;
   code: string;
@@ -118,6 +135,15 @@ export interface AppEndpointDto {
   options: Record<string, unknown>;
   secret_ref: string | null;
   is_active: boolean;
+  /** Ships with the product; cannot be deleted, only deactivated. */
+  is_system?: boolean;
+  auth_mode?: AuthMode;
+  /** Non-secret selector: an AWS profile name, an Azure tenant id. */
+  auth_ref?: string | null;
+  username?: string | null;
+  description?: string;
+  /** Logical key -> environment variable NAME. Never a value. */
+  config_env?: Record<string, string>;
 }
 
 export interface MioLineageEdgeDto {
@@ -250,3 +276,42 @@ export const TECH_STACKS = [
 export const MIO_STATES: MioState[] = [
   'draft', 'building', 'ready', 'live', 'rejected', 'retired',
 ];
+
+
+/* ---- dataset locations (ADR-012) -------------------------------------- */
+
+export type LocationRole = 'source' | 'landing' | 'curated' | 'export';
+
+export interface DatasetEndpointDto {
+  dataset_endpoint_id: string;
+  dataset_id: string;
+  role: LocationRole;
+  /** Null only for an external source: nobody registers Kaggle as an app endpoint. */
+  app_endpoint_id: string | null;
+  location_kind: string;
+  uri: string;
+  options: Record<string, unknown>;
+  format: string | null;
+  bytes: number;
+  object_count: number;
+  state: 'declared' | 'syncing' | 'available' | 'stale' | 'failed';
+  is_primary: boolean;
+  last_synced_at: string | null;
+  sync_wf_status?: string | null;
+  sync_started_at?: string | null;
+  sync_attempts?: number;
+}
+
+export function locationStateChip(s: DatasetEndpointDto['state']): string {
+  return {
+    available: 'chip chip-ok',
+    syncing: 'chip chip-run',
+    declared: 'chip chip-neutral',
+    stale: 'chip chip-warn',
+    failed: 'chip chip-fail',
+  }[s];
+}
+
+export function roleLabel(r: LocationRole): string {
+  return { source: 'Source', landing: 'Landing', curated: 'Curated', export: 'Export' }[r];
+}

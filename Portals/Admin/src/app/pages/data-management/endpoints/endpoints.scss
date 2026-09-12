@@ -17,3 +17,9 @@
   color: var(--ink-700); font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
 }
 .pill-on { background: var(--brand-600); border-color: var(--brand-600); color: #fff; }
+
+.opt {
+  background: var(--brand-050); border-color: var(--brand-100); color: var(--brand-700);
+}
+.opt-plain { background: var(--surface-sunken); border-color: var(--line); color: var(--ink-700); }
+.cell-title { display: flex; align-items: center; gap: .375rem; }

@@ -82,7 +82,22 @@
   font-weight: 700;
 }
 
-.content { flex: 1; padding: 1.5rem; max-width: 1500px; width: 100%; margin: 0 auto; }
+/* Was capped at 1500px and centred, which left a wide screen with large empty margins
+ * on both sides. These pages are dense tables; the width is worth more than the
+ * symmetry. The remaining cap only stops line lengths becoming unreadable on an
+ * ultra-wide display. */
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 2200px;
+  padding: 1.25rem 1.5rem 2rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 2400px) {
+  /* Past this width, centring is the lesser evil. */
+  .content { padding-inline: 2rem; }
+}
 
 @media (max-width: 900px) {
   .topbar { gap: 1rem; padding: 0 1rem; }

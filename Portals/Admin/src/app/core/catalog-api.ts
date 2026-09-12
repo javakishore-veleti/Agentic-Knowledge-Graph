@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, InjectionToken, inject, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import {
-  AppEndpointDto, CreateMioReq, DataInstanceDto, DataInstanceExecDto, DataInstancesResp,
+  AppEndpointDto, CreateMioReq, DataInstanceDto, DatasetEndpointDto, DataInstanceExecDto, DataInstancesResp,
   DatasetDto, DomainDto, InvokeResp, MioDto, MioLineageResp, MioWorkflowDto, Paged,
   UpdateMioReq, WorkflowDto,
 } from './catalog-models';
@@ -19,6 +19,7 @@ export abstract class CatalogApi {
   abstract execs(instanceId: string): Observable<Paged<DataInstanceExecDto>>;
   abstract endpoints(filters?: { tech_stack?: string; env?: string }): Observable<Paged<AppEndpointDto>>;
   abstract lineage(mioId: string): Observable<MioLineageResp>;
+  abstract datasetLocations(datasetId: string): Observable<{ dataset_id: string; items: DatasetEndpointDto[] }>;
 
   abstract workflows(filters?: { domain?: string; q?: string }): Observable<Paged<WorkflowDto>>;
   abstract mioWorkflows(mioId: string): Observable<{ mio_id: string; items: MioWorkflowDto[] }>;
@@ -73,6 +74,11 @@ export class HttpCatalogApi extends CatalogApi {
 
   lineage(mioId: string): Observable<MioLineageResp> {
     return this.http.get<MioLineageResp>(`${this.base}/api/v1/mios/${mioId}/lineage`);
+  }
+
+  datasetLocations(datasetId: string): Observable<{ dataset_id: string; items: DatasetEndpointDto[] }> {
+    return this.http.get<{ dataset_id: string; items: DatasetEndpointDto[] }>(
+      `${this.base}/api/v1/datasets/${datasetId}/endpoints`);
   }
 
   workflows(f: { domain?: string; q?: string } = {}): Observable<Paged<WorkflowDto>> {
@@ -223,6 +229,40 @@ export class MockCatalogApi extends CatalogApi {
       (!f.tech_stack || m.tech_stack === f.tech_stack) &&
       (f.has_cdc === undefined || m.has_cdc === f.has_cdc) &&
       (!f.q || (m.name + m.code).toLowerCase().includes(f.q.toLowerCase())))));
+  }
+
+  datasetLocations(datasetId: string): Observable<{ dataset_id: string; items: DatasetEndpointDto[] }> {
+    const mk = (
+      id: string, role: DatasetEndpointDto['role'], kind: string, uri: string,
+      state: DatasetEndpointDto['state'], bytes: number, appId: string | null,
+      primary = false,
+    ): DatasetEndpointDto => ({
+      dataset_endpoint_id: id, dataset_id: datasetId, role, app_endpoint_id: appId,
+      location_kind: kind, uri, options: {}, format: null, bytes, object_count: 0,
+      state, is_primary: primary, last_synced_at: null,
+    });
+    const byDataset: Record<string, DatasetEndpointDto[]> = {
+      ds1: [
+        mk('de1', 'source', 'ftp', 'ftp://ftp.ncbi.nlm.nih.gov/pubmed/baseline/', 'declared', 0, null, true),
+        mk('de2', 'landing', 's3', 's3://akg-raw/pubmed/2026/', 'available', 442_000_000_000, 'a1', true),
+        mk('de3', 'curated', 'local_fs', 'file:///mnt/data/parquet/pubmed/', 'available', 96_000_000_000, 'a0'),
+      ],
+      ds2: [
+        mk('de4', 'source', 'ftp', 'ftp://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/', 'declared', 0, null, true),
+        mk('de5', 'landing', 'azure_blob', 'abfss://raw@akgraw/pubmed/w37/', 'syncing', 0, 'a4', true),
+      ],
+      ds3: [
+        mk('de6', 'source', 'http_url', 'https://clinicaltrials.gov/api/v2/studies', 'declared', 0, null, true),
+        // Nothing landed yet: acquiring is the action the drawer offers.
+        mk('de7', 'landing', 's3', 's3://akg-raw/ctgov/2026-09/', 'declared', 0, 'a1', true),
+      ],
+      ds4: [
+        mk('de8', 'source', 'file_server', 'smb://files.internal/kb/', 'declared', 0, null, true),
+        // Acquisition ran and failed: retry is allowed without forcing.
+        mk('de9', 'landing', 'local_fs', 'file:///mnt/data/raw/kb/', 'failed', 0, 'a0', true),
+      ],
+    };
+    return of({ dataset_id: datasetId, items: byDataset[datasetId] ?? [] });
   }
 
   workflows(f: { domain?: string; q?: string } = {}): Observable<Paged<WorkflowDto>> {
@@ -425,9 +465,88 @@ export class MockCatalogApi extends CatalogApi {
 
   endpoints(f: { tech_stack?: string; env?: string } = {}): Observable<Paged<AppEndpointDto>> {
     const all: AppEndpointDto[] = [
-      { app_endpoint_id: 'a1', code: 'pg-local', name: 'Local Postgres', tech_stack: 'postgres',
-        env: 'local', host: 'localhost', port: 5432, database: 'akg',
-        options: { sslmode: 'disable' }, secret_ref: 'kv://akg-local/pg-password', is_active: true },
+      { app_endpoint_id: 'a0', code: 'local-fs', name: 'Local filesystem',
+        description: 'Files on the machine running the code', tech_stack: 'local_fs',
+        env: 'local', host: 'localhost', port: null, database: null, username: null,
+        options: {}, config_env: { root: 'AKG_LOCAL_DATA_ROOT' }, secret_ref: null,
+        auth_mode: 'anonymous', auth_ref: null, is_active: true, is_system: true },
+      { app_endpoint_id: 'a1', code: 'pg-local', name: 'PostgreSQL (local)',
+        description: 'Postgres in the local Docker stack', tech_stack: 'postgres',
+        env: 'local', host: 'localhost', port: 5432, database: 'akg', username: 'akg',
+        options: { sslmode: 'disable' },
+        config_env: { host: 'AKG_PG_HOST', port: 'AKG_PG_PORT',
+                      database: 'AKG_PG_DATABASE', username: 'AKG_PG_USERNAME',
+                      password: 'AKG_PG_PASSWORD' },
+        secret_ref: null, auth_mode: 'env_vars', auth_ref: null,
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1b', code: 'pg-aws-rds', name: 'PostgreSQL (AWS RDS)',
+        description: 'Amazon RDS for PostgreSQL', tech_stack: 'postgres', env: 'aws-dev',
+        host: 'CHANGE-ME.rds.amazonaws.com', port: 5432, database: 'akg', username: 'akg',
+        options: { sslmode: 'require' },
+        config_env: { host: 'AKG_RDS_PG_HOST', password: 'AKG_RDS_PG_PASSWORD' },
+        secret_ref: null, auth_mode: 'env_vars', auth_ref: null,
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1c', code: 'pg-azure', name: 'PostgreSQL (Azure)',
+        description: 'Azure Database for PostgreSQL', tech_stack: 'postgres',
+        env: 'azure-dev', host: 'CHANGE-ME.postgres.database.azure.com', port: 5432,
+        database: 'akg', username: 'akg', options: { sslmode: 'require' },
+        config_env: { host: 'AKG_AZURE_PG_HOST', password: 'AKG_AZURE_PG_PASSWORD' },
+        secret_ref: null, auth_mode: 'env_vars', auth_ref: null,
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1d', code: 'aws-s3-profile', name: 'AWS S3 (named profile)',
+        description: 'Uses a profile from ~/.aws/credentials on this machine',
+        tech_stack: 's3', env: 'local', host: 's3.amazonaws.com', port: null,
+        database: null, username: null, options: {},
+        config_env: { bucket: 'AKG_AWS_S3_BUCKET', region: 'AKG_AWS_REGION' },
+        secret_ref: null, auth_mode: 'aws_profile', auth_ref: 'default',
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1e', code: 'aws-s3-keys', name: 'AWS S3 (access keys)',
+        description: 'Access key and secret supplied by the environment',
+        tech_stack: 's3', env: 'local', host: 's3.amazonaws.com', port: null,
+        database: null, username: null, options: {},
+        config_env: { bucket: 'AKG_AWS_S3_BUCKET',
+                      access_key_id: 'AKG_AWS_ACCESS_KEY_ID',
+                      secret_access_key: 'AKG_AWS_SECRET_ACCESS_KEY' },
+        secret_ref: null, auth_mode: 'env_vars', auth_ref: null,
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1f', code: 'aws-s3-role', name: 'AWS S3 (attached role)',
+        description: 'Instance profile, ECS task role or EKS IRSA', tech_stack: 's3',
+        env: 'aws-dev', host: 's3.amazonaws.com', port: null, database: null,
+        username: null, options: {}, config_env: { bucket: 'AKG_AWS_S3_BUCKET' },
+        secret_ref: null, auth_mode: 'aws_role', auth_ref: null,
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1g', code: 'azure-blob-cli', name: 'Azure Blob (az login)',
+        description: 'Uses the token az login left on this machine',
+        tech_stack: 'azure_blob', env: 'local', host: 'blob.core.windows.net',
+        port: null, database: null, username: null, options: {},
+        config_env: { account: 'AKG_AZURE_STORAGE_ACCOUNT',
+                      container: 'AKG_AZURE_STORAGE_CONTAINER' },
+        secret_ref: null, auth_mode: 'azure_cli', auth_ref: null,
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1h', code: 'azure-blob-sp',
+        name: 'Azure Blob (service principal)',
+        description: 'Client id and secret supplied by the environment',
+        tech_stack: 'azure_blob', env: 'azure-dev', host: 'blob.core.windows.net',
+        port: null, database: null, username: null, options: {},
+        config_env: { tenant_id: 'AKG_AZURE_TENANT_ID',
+                      client_id: 'AKG_AZURE_CLIENT_ID',
+                      client_secret: 'AKG_AZURE_CLIENT_SECRET' },
+        secret_ref: null, auth_mode: 'azure_client_secret', auth_ref: null,
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1i', code: 'azure-blob-msi',
+        name: 'Azure Blob (managed identity)',
+        description: 'Workload identity inside Azure; no secret at all',
+        tech_stack: 'azure_blob', env: 'azure-prod', host: 'blob.core.windows.net',
+        port: null, database: null, username: null, options: {},
+        config_env: { account: 'AKG_AZURE_STORAGE_ACCOUNT' }, secret_ref: null,
+        auth_mode: 'azure_managed_identity', auth_ref: null,
+        is_active: true, is_system: true },
+      { app_endpoint_id: 'a1j', code: 'pubmed-ftp', name: 'PubMed baseline (NCBI)',
+        description: 'Public FTP origin of the annual baseline', tech_stack: 'ftp',
+        env: 'local', host: 'ftp.ncbi.nlm.nih.gov', port: null, database: null,
+        username: null, options: { path: '/pubmed/baseline/' },
+        config_env: { base_url: 'AKG_PUBMED_BASELINE_URL' }, secret_ref: null,
+        auth_mode: 'anonymous', auth_ref: null, is_active: true, is_system: true },
       { app_endpoint_id: 'a2', code: 'pgvector-local', name: 'Local pgvector', tech_stack: 'pgvector',
         env: 'local', host: 'localhost', port: 5432, database: 'akg',
         options: { index: 'doc_embeddings' }, secret_ref: 'kv://akg-local/pg-password', is_active: true },

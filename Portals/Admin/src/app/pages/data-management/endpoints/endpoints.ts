@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CatalogApi } from '../../../core/catalog-api';
-import { AppEndpointDto, techLabel } from '../../../core/catalog-models';
+import { AppEndpointDto, authModeLabel, techLabel } from '../../../core/catalog-models';
 
 /** Where each technology lives.
  *
@@ -17,6 +17,7 @@ import { AppEndpointDto, techLabel } from '../../../core/catalog-models';
 export class Endpoints {
   private readonly api = inject(CatalogApi);
   readonly techLabel = techLabel;
+  readonly authModeLabel = authModeLabel;
 
   readonly rows = signal<AppEndpointDto[]>([]);
   readonly loading = signal(true);
@@ -42,5 +43,11 @@ export class Endpoints {
 
   optionPairs(e: AppEndpointDto): { k: string; v: string }[] {
     return Object.entries(e.options ?? {}).map(([k, v]) => ({ k, v: String(v) }));
+  }
+
+  /** The NAMES of the variables this endpoint reads. Never their values -- the catalog
+   *  does not hold them, so the portal has nothing to leak. */
+  envVars(e: AppEndpointDto): { k: string; v: string }[] {
+    return Object.entries(e.config_env ?? {}).map(([k, v]) => ({ k, v: String(v) }));
   }
 }

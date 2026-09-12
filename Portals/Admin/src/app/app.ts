@@ -26,6 +26,7 @@ export class App {
     { path: '/datasets', label: 'DataSets' },
     { path: '/mios', label: 'MIOs' },
     { path: '/workflows', label: 'Workflows' },
+    { path: '/endpoints', label: 'Endpoints' },
     { path: '/data-management', label: 'Data Management' },
     { path: '/traces', label: 'Traces' },
     { path: '/releases', label: 'Releases' },

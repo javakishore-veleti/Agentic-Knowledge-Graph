@@ -24,6 +24,12 @@ export const routes: Routes = [
     title: 'Workflows · Knowledge Admin',
   },
   {
+    path: 'endpoints',
+    loadComponent: () =>
+      import('./pages/data-management/endpoints/endpoints').then((m) => m.Endpoints),
+    title: 'Endpoints · Knowledge Admin',
+  },
+  {
     path: 'data-management',
     loadComponent: () =>
       import('./pages/data-management/data-management').then((m) => m.DataManagement),
