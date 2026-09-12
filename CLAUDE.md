@@ -19,30 +19,53 @@ uv run main.py          # run the scaffold entry point
 uv add <pkg>            # add a dependency (updates pyproject.toml + uv.lock)
 ```
 
-## Reference study
+## Reference study and its upstream repo
 
 Both PRDs derive from *Structuring 40 Million Documents into an Agentic Knowledge Graph*:
-https://medium.com/gitconnected/structuring-40-million-documents-into-an-agentic-knowledge-graph-92010e609dfa
-(39.99M documents, 929.8M edges, zero model calls to build). This is the system being
-implemented here — the PRDs are its productionisation, not a separate design.
+- Article: https://medium.com/gitconnected/structuring-40-million-documents-into-an-agentic-knowledge-graph-92010e609dfa
+- Reference implementation: https://github.com/FareedKhan-dev/agentic-knowledge-graph
 
-`poc/` is that study's pipeline, and its stages map onto the article's offline-build row:
+Headline claims to hold the build to: 83.2% on 600 held-out PubMedQA questions (95% CI
+80.2–86.2) against a 53.3% majority-class floor and 37.2% for the same model with no
+evidence; 929,824,202 edges built with zero LLM calls; graph certification AUROC 0.500
+(chance) vs free model confidence AUROC 0.810.
 
-| PoC script | Build stage |
-|---|---|
-| `poc/pipeline/parse_pubmed.py` | parse 40M XML → 6 tables |
-| `poc/pipeline/build_graph4.py` | build MeSH ontology + CSR graph |
-| `poc/pipeline/embed_corpus3.py` | embed 28.3M abstracts |
-| `poc/pipeline/consolidate_index.py` | consolidate 1,334 shards → 1 index |
-| `poc/pipeline/kg_ground3.py` … `kg_ground6.py` | hybrid grounder (lexical + dense agents) |
-| `poc/notebook/agentic_kg_40m.ipynb` | end-to-end study notebook |
+The upstream repo splits into two tiers, which is the split to preserve here:
 
-Two things in the study's architecture are **deliberately dropped** downstream, so do not
-port them forward from the diagram or the article: the `refine / broaden` agent loop around
-the refusal ladder (measured 2.5 points worse than the plain pipeline) and gate 6, the
-entailment verifier (0.97 neutral on concatenated passages — off by default, PRD B open
-question Q5). The refusal ladder's structural gates — no entry point, <2 concepts, no path,
-not quotable, only retracted — do carry forward into retrieval.
+| Tier | Contents | Requirements |
+|---|---|---|
+| `analysis/` + `results/` | `run_all.py` reproduces the published numbers from 32 JSON result sets and 9 NPZ posterior caches | CPU only, numpy + matplotlib, ~10s |
+| `pipeline/` (46 modules) | corpus parse, MeSH/SCR parse, CSR graph build, embedding, GPU experiments | H100 80GB, ~400GB disk, full corpus |
+
+This repo's `pyproject.toml` pins exactly the upstream CPU deps (numpy, matplotlib), so the
+`uv` scaffold is aimed at the reproducible analysis tier, not the H100 tier.
+
+### State of `poc/`
+
+**`poc/pipeline/*.py` are all 0-byte placeholders** — `parse_pubmed.py`, `build_graph4.py`,
+`embed_corpus3.py`, `consolidate_index.py`, `kg_ground3.py`…`kg_ground6.py` exist as empty
+files whose names were taken from the upstream `pipeline/` tier. There is no code in them.
+`poc/notebook/agentic_kg_40m.py` is likewise a 17-byte stub (it contains only its own
+filename); upstream that path is the jupytext source of the notebook.
+
+**`poc/notebook/agentic_kg_40m.ipynb` is the only real content**, and it is *not* the
+upstream notebook: 29 cells / 14 code cells, no stored outputs, zero cell overlap with
+upstream's 196-cell executed notebook. It is an independent laptop-scale walkthrough of the
+same narrative — parameters, corpus-ships-its-own-edges, MeSH as the ontology, CSR store
+instead of a graph database, grounding without a model touching an identifier, the refusal
+ladder, ranking terminals, a constrained yes/no/maybe posterior, and the walk-cite-or-refuse
+agent.
+
+So treat `poc/` as a narrative demo plus an empty filename skeleton. When a PoC stage is
+needed, port from upstream `pipeline/` (or write it) rather than assuming the local file
+already holds it.
+
+Two things in the study are **deliberately dropped** downstream, so do not port them forward
+from the article's diagram: the `refine / broaden` agent loop around the refusal ladder
+(measured 2.5 points worse than the plain pipeline) and gate 6, the entailment verifier
+(0.97 neutral on concatenated passages — off by default, PRD B open question Q5). The
+structural gates — no entry point, <2 concepts, no path, not quotable, only retracted — do
+carry forward into retrieval.
 
 ## The two PRDs — read this before implementing anything
 
