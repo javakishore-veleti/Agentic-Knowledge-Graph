@@ -1,0 +1,80 @@
+.metric-label {
+  font-size: .6875rem; font-weight: 680; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-500);
+}
+.metric-value {
+  display: block;
+  font-size: 1.375rem; font-weight: 660; letter-spacing: -.02em;
+  color: var(--brand-700); font-variant-numeric: tabular-nums;
+}
+
+.live-card { border-color: var(--teal-100); background: linear-gradient(180deg, #f2fdfa, var(--surface)); }
+.live-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 .875rem;
+}
+.pins { font-size: .6875rem; color: var(--ink-500); padding-top: .75rem; border-top: 1px solid var(--line); }
+
+.arms { display: flex; gap: .25rem; flex-wrap: wrap; }
+.arm {
+  font-family: var(--mono); font-size: .6875rem; font-weight: 600;
+  padding: .125rem .375rem; border-radius: var(--radius-sm);
+  background: var(--teal-100); color: var(--teal-700);
+  white-space: nowrap;
+}
+.arm-bad { background: var(--rose-100); color: var(--rose-700); }
+
+.up { color: var(--teal-700); }
+.down { color: var(--rose-700); }
+
+table.data.mini th, table.data.mini td { padding: .4375rem .5rem; }
+
+.budget { margin-top: .625rem; }
+.bar { height: 6px; border-radius: 999px; background: var(--brand-100); overflow: hidden; margin: .25rem 0; }
+.bar-fill { display: block; height: 100%; background: var(--brand-500); }
+
+.blockers {
+  margin: .5rem 0 0; padding-left: 1.125rem;
+  font-size: .8125rem; color: var(--rose-700);
+}
+.blockers li { margin-bottom: .25rem; }
+
+.drawer-scrim {
+  position: fixed; inset: 0;
+  background: rgba(23, 19, 70, .38);
+  z-index: 30;
+}
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(560px, 100vw);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  z-index: 31;
+  display: flex; flex-direction: column;
+}
+.drawer-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding: 1.125rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--brand-050), var(--surface));
+}
+.drawer-head h2 { font-size: .9375rem; }
+.drawer-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+.drawer-foot {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+
+.confirm { display: flex; align-items: flex-end; gap: .625rem; }
+.confirm .field { flex: 1; }
+
+.ok-banner {
+  display: flex; flex-direction: column; gap: .125rem;
+  padding: .625rem .75rem;
+  border-radius: var(--radius-sm);
+  background: var(--teal-100);
+  color: var(--teal-700);
+}

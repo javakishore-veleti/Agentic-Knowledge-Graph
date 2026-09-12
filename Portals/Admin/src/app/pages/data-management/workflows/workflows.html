@@ -81,15 +81,20 @@
         <span class="metric-label">Request body</span>
         <pre class="mono">{{ { domain: def.domain, sub_domain: def.sub_domain, workflow: def.workflow, input_data: values() } | json }}</pre>
       </div>
-    </div>
 
-    <footer class="drawer-foot">
       @if (submitted(); as id) {
         <div class="ok-banner">
           <strong>Queued.</strong>
           <span class="mono">exec_id {{ id }}</span>
           <span class="tiny">Status PENDING until the engine returns a wf_ref_id.</span>
         </div>
+      }
+    </div>
+
+    <footer class="drawer-foot">
+      @if (submitted()) {
+        <div class="spacer"></div>
+        <button class="btn btn-secondary" (click)="close()">Done</button>
       } @else {
         @if (missing.length) {
           <span class="tiny" style="color: var(--amber-700)">

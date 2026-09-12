@@ -35,16 +35,30 @@ mkdir -p "$RUN_DIR"
 pid_file() { echo "$RUN_DIR/ui-$1.pid"; }
 log_file() { echo "$RUN_DIR/ui-$1.log"; }
 
-port_busy() { lsof -ti tcp:"$1" >/dev/null 2>&1; }
+# -sTCP:LISTEN matters. Plain `lsof -ti tcp:PORT` also returns every CLIENT holding a
+# connection to that port -- including the browser you have the page open in. An earlier
+# version of the stop script used the unfiltered form and would have killed Chrome.
+# The `|| true` is load-bearing. This file sets `pipefail`, and lsof exits non-zero when
+# nothing matches, so without it every "is anything listening?" check on a free port
+# fails the pipeline and `set -e` kills the calling script mid-loop.
+listener_pid() { { lsof -ti tcp:"$1" -sTCP:LISTEN 2>/dev/null || true; } | head -1; }
 
-# Echoes the pid and returns 0 only when the recorded process is genuinely alive, so a
-# stale pid file reads as "not running" rather than as a phantom server.
+port_busy() { [ -n "$(listener_pid "$1")" ]; }
+
+# The listening socket is the source of truth, not the pid file: `$!` through a
+# backgrounded `cd && nohup` chain proved unreliable, and a stale file is worse than no
+# file. The pid file is only a hint, reconciled against the port here.
 app_pid() {
-  local f p
+  local port p f
+  port="$(port_of "$1")"
+  p="$(listener_pid "$port")"
+  if [ -n "$p" ]; then
+    echo "$p" > "$(pid_file "$1")"
+    echo "$p"
+    return 0
+  fi
+  # Nothing listening: the recorded pid, if any, is stale.
   f="$(pid_file "$1")"
-  [ -f "$f" ] || return 1
-  p="$(cat "$f")"
-  [ -n "$p" ] || return 1
-  kill -0 "$p" 2>/dev/null || return 1
-  echo "$p"
+  [ -f "$f" ] && rm -f "$f"
+  return 1
 }

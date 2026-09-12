@@ -24,8 +24,8 @@ export class App {
   readonly nav = signal<TopNavItem[]>([
     { path: '/datasets', label: 'DataSets' },
     { path: '/data-management', label: 'Data Management' },
-    { path: '/traces', label: 'Traces', planned: true },
-    { path: '/releases', label: 'Releases', planned: true },
+    { path: '/traces', label: 'Traces' },
+    { path: '/releases', label: 'Releases' },
     { path: '/operations', label: 'Operations', planned: true },
     { path: '/access', label: 'Access', planned: true },
   ]);

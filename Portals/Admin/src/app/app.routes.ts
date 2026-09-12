@@ -31,5 +31,15 @@ export const routes: Routes = [
       },
     ],
   },
+  {
+    path: 'traces',
+    loadComponent: () => import('./pages/traces/traces').then((m) => m.Traces),
+    title: 'Traces · Knowledge Admin',
+  },
+  {
+    path: 'releases',
+    loadComponent: () => import('./pages/releases/releases').then((m) => m.Releases),
+    title: 'Releases · Knowledge Admin',
+  },
   { path: '**', redirectTo: 'datasets' },
 ];

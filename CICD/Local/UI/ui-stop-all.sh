@@ -7,6 +7,7 @@
 . "$(dirname "${BASH_SOURCE[0]}")/_ports.sh"
 
 stop_one() {
+  local app port stopped pid child pgid holder
   app="$1"
   port="$(port_of "$app")"
   stopped=no
@@ -26,18 +27,19 @@ stop_one() {
   fi
   rm -f "$(pid_file "$app")"
 
-  # Whatever the pid file said, the port is the thing that must end up free.
-  holder="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
+  # Only ever the LISTENER. Never the unfiltered lsof: that list includes browsers and
+  # other clients connected to the port, and killing those is not ours to do.
+  holder="$(listener_pid "$port")"
   if [ -n "$holder" ]; then
-    echo "    port $port still held by pid $holder; terminating"
-    for h in $holder; do kill -TERM "$h" 2>/dev/null || true; done
+    echo "    port $port still listening on pid $holder; terminating"
+    kill -TERM "$holder" 2>/dev/null || true
     sleep 1
-    holder="$(lsof -ti tcp:"$port" 2>/dev/null || true)"
-    for h in $holder; do kill -KILL "$h" 2>/dev/null || true; done
+    holder="$(listener_pid "$port")"
+    [ -n "$holder" ] && kill -KILL "$holder" 2>/dev/null || true
     stopped=yes
   fi
 
-  [ "$stopped" = no ] && echo "==  $app not running"
+  if [ "$stopped" = no ]; then echo "==  $app not running"; fi
   return 0
 }
 

@@ -21,11 +21,12 @@ for app in $APPS; do
   log="$(log_file "$app")"
   # </dev/null matters: without it the child inherits the caller's stdin pipe and
   # `npm run` will not return until the server exits, which defeats "detached".
-  ( cd "$(path_of "$app")" \
-    && nohup npx ng serve --port "$port" < /dev/null > "$log" 2>&1 &
-    echo $! > "$(pid_file "$app")"
-    disown 2>/dev/null || true )
-  echo "==> $app starting (pid $(cat "$(pid_file "$app")")) -> ${log#"$REPO_ROOT/"}"
+  # </dev/null matters: without it the child inherits the caller's stdin pipe and the
+  # caller will not return until the server exits, which defeats "detached".
+  ( cd "$(path_of "$app")" && exec nohup npx ng serve --port "$port" \
+      < /dev/null > "$log" 2>&1 ) &
+  disown 2>/dev/null || true
+  echo "==> $app starting -> ${log#"$REPO_ROOT/"}"
 done
 
 echo ""
@@ -40,7 +41,8 @@ for app in $APPS; do
     sleep 1
   done
   if [ "$ok" = yes ]; then
-    echo "  $app     ready    http://localhost:$port"
+    # Record the real listener now that one exists.
+    echo "  $app     ready    pid $(app_pid "$app")    http://localhost:$port"
   else
     # Not fatal: a cold compile can outlast the wait. The server is still coming up;
     # ui-status-all.sh is the authority on whether it arrived.

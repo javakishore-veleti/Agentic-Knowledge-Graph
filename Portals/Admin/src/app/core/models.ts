@@ -127,3 +127,141 @@ export function stackLabel(t: TechStack): string {
     aws_kafka_consumer: 'AWS Kafka',
   }[t];
 }
+
+/* ---- Quality gate and release control (PRD B B5) ---------------------- */
+
+/** A reference arm. These run on every candidate and can never be selected as the
+ *  winner: they exist to prove the measurement instrument still works. An oracle that
+ *  stops scoring near-perfect, or a shuffled-label arm that scores above chance, means
+ *  the harness is broken and the headline number is meaningless. */
+export interface ReferenceArm {
+  arm: 'oracle' | 'blind' | 'majority_class' | 'shuffled_label';
+  accuracy: number;
+  /** Range this arm must land in for the run to be trustworthy. */
+  expected_min: number;
+  expected_max: number;
+}
+
+export interface ErrorBudgetItem {
+  cause: string;
+  share: number;
+  note: string;
+}
+
+export interface Release {
+  release: string;
+  created_at: string;
+  state: 'live' | 'candidate' | 'rejected' | 'superseded';
+  graph: string;
+  index: string;
+  ontology: string;
+  calibration: string;
+  test_accuracy: number;
+  coverage: number;
+  /** Control questions answered when they should have been refused. */
+  leak: number;
+  gold_in_top_16: number;
+  /** Citations naming a document outside the admitted set. Must be zero. */
+  unadmitted_citations: number;
+  arms: ReferenceArm[];
+  error_budget: ErrorBudgetItem[];
+}
+
+export function armLabel(a: ReferenceArm['arm']): string {
+  return {
+    oracle: 'Oracle',
+    blind: 'Blind (no evidence)',
+    majority_class: 'Majority class',
+    shuffled_label: 'Shuffled labels',
+  }[a];
+}
+
+export function armOk(a: ReferenceArm): boolean {
+  return a.accuracy >= a.expected_min && a.accuracy <= a.expected_max;
+}
+
+/** The margin the gate actually optimises: coverage net of leak. */
+export function margin(r: Release): number {
+  return r.coverage - r.leak;
+}
+
+/** Every condition promotion requires. Returned as a list so the UI can show the
+ *  operator exactly which one is blocking rather than a bare disabled button. */
+export function gateFailures(r: Release, live?: Release): string[] {
+  const out: string[] = [];
+  for (const a of r.arms) {
+    if (!armOk(a)) out.push(`${armLabel(a.arm)} arm outside tolerance (${(a.accuracy * 100).toFixed(1)}%)`);
+  }
+  if (r.unadmitted_citations > 0) out.push(`${r.unadmitted_citations} unadmitted citation(s)`);
+  if (r.gold_in_top_16 < 0.95) out.push(`gold-in-top-16 ${(r.gold_in_top_16 * 100).toFixed(1)}% below 95%`);
+  if (live) {
+    if (r.test_accuracy < live.test_accuracy) out.push('accuracy below the live pin');
+    if (margin(r) < margin(live)) out.push('margin below the live pin');
+  }
+  return out;
+}
+
+/* ---- Source trace explorer (PRD B B4) --------------------------------- */
+
+export type CertRoute = 'co_annotation' | 'ontology_ancestry' | 'citation_adjacency' | 'uncertified';
+
+export interface TraceConcept {
+  concept_id: string;
+  name: string;
+  role: 'bridge' | 'filter' | 'ignore';
+  is_check_tag: boolean;
+}
+
+export interface TraceCandidate {
+  doc_id: string;
+  title: string;
+  dense_score: number;
+  rerank_score?: number;
+  route: CertRoute;
+  reason: string;
+  path: string[];
+  retracted: boolean;
+  quotable: boolean;
+  admitted: boolean;
+  cited: boolean;
+}
+
+export interface GateResult {
+  gate: string;
+  /** true = the question passed this gate. */
+  passed: boolean;
+  detail: string;
+}
+
+export interface Trace {
+  answer_id: string;
+  question: string;
+  as_of?: string;
+  trace_id: string;
+  tenant_id: string;
+  asked_at: string;
+  concepts: TraceConcept[];
+  candidates: TraceCandidate[];
+  gates: GateResult[];
+  posterior?: Record<string, number>;
+  raw_confidence?: number;
+  calibrated_confidence?: number;
+  threshold: number;
+  disposition: 'ANSWER' | 'REFUSE' | 'HUMAN_REVIEW';
+  refusal_reason?: string;
+  answer_text?: string;
+  pins: { graph: string; index: string; ontology: string; calibration: string };
+}
+
+export function routeLabel(r: CertRoute): string {
+  return {
+    co_annotation: 'Co-annotation',
+    ontology_ancestry: 'Ontology ancestry',
+    citation_adjacency: 'Citation adjacency',
+    uncertified: 'Uncertified',
+  }[r];
+}
+
+export function routeChip(r: CertRoute): string {
+  return r === 'uncertified' ? 'chip chip-warn' : 'chip chip-run';
+}

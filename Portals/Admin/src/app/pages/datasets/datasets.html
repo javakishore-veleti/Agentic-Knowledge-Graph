@@ -88,11 +88,13 @@
               </td>
               <td>
                 <div class="row" style="gap: .375rem">
-                  <span [class]="d.alignment_assert ? 'chip chip-ok' : 'chip chip-fail'">
-                    align
+                  <span [class]="d.alignment_assert ? 'chip chip-ok' : 'chip chip-fail'"
+                        [title]="d.alignment_assert ? 'alignment assert passed' : 'alignment assert FAILED'">
+                    {{ d.alignment_assert ? '✓' : '✕' }} align
                   </span>
-                  <span [class]="d.source_recount ? 'chip chip-ok' : 'chip chip-fail'">
-                    recount
+                  <span [class]="d.source_recount ? 'chip chip-ok' : 'chip chip-fail'"
+                        [title]="d.source_recount ? 'source recount passed' : 'source recount FAILED'">
+                    {{ d.source_recount ? '✓' : '✕' }} recount
                   </span>
                 </div>
               </td>
@@ -104,6 +106,47 @@
           }
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <div class="lower">
+    <div class="card card-pad">
+      <span class="metric-label">Promotion readiness</span>
+      <p class="muted tiny" style="margin-top: .25rem">
+        A set is promotable only when both checks pass. Colour is not the signal; the
+        glyph is.
+      </p>
+      @for (d of all(); track d.dataset_id) {
+        <div class="ready-row">
+          <span class="ready-name">{{ d.name }}</span>
+          @if (d.alignment_assert && d.source_recount) {
+            <span class="chip chip-ok">✓ promotable</span>
+          } @else {
+            <span class="chip chip-fail">
+              ✕ {{ !d.alignment_assert && !d.source_recount ? 'both checks failed'
+                   : !d.alignment_assert ? 'alignment failed' : 'recount failed' }}
+            </span>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="card card-pad">
+      <span class="metric-label">Edge provenance</span>
+      <p class="muted tiny" style="margin-top: .25rem">
+        Where each set's relationships came from. Publisher-supplied structure costs
+        nothing to trust; extracted edges have to earn it.
+      </p>
+      @for (d of all(); track d.dataset_id) {
+        <div class="ready-row">
+          <span class="ready-name">{{ d.name }}</span>
+          @if (d.edges > 0) {
+            <span class="chip chip-run">{{ d.edges | number }} edges · 0 model calls</span>
+          } @else {
+            <span class="chip chip-warn">no edges — extraction adapter required</span>
+          }
+        </div>
+      }
     </div>
   </div>
 </div>

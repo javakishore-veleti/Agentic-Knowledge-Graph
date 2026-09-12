@@ -1,0 +1,211 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>Releases</h1>
+      <p class="muted tiny">
+        A release pins one compatible set of artifacts. Promotion moves the pointer;
+        rollback moves it back. Nothing is hot-patched.
+      </p>
+    </div>
+    @if (live(); as l) {
+      <button class="btn btn-secondary" (click)="rollback()">Rollback to previous</button>
+    }
+  </div>
+
+  @if (live(); as l) {
+    <div class="card live-card">
+      <div class="card-pad">
+        <div class="row-between">
+          <div class="row" style="gap: .625rem">
+            <span class="chip chip-ok"><span class="chip-dot"></span>LIVE</span>
+            <strong class="mono">{{ l.release }}</strong>
+          </div>
+          <span class="muted tiny">every query resolves this pointer</span>
+        </div>
+        <div class="live-metrics">
+          <div><span class="metric-label">Accuracy</span>
+               <span class="metric-value">{{ l.test_accuracy | percent: '1.1-1' }}</span></div>
+          <div><span class="metric-label">Coverage</span>
+               <span class="metric-value">{{ l.coverage | percent: '1.1-1' }}</span></div>
+          <div><span class="metric-label">Leak</span>
+               <span class="metric-value">{{ l.leak | percent: '1.1-1' }}</span></div>
+          <div><span class="metric-label">Margin</span>
+               <span class="metric-value">{{ margin(l) | percent: '1.1-1' }}</span></div>
+          <div><span class="metric-label">Gold in top 16</span>
+               <span class="metric-value">{{ l.gold_in_top_16 | percent: '1.1-1' }}</span></div>
+        </div>
+        <div class="pins mono">
+          graph {{ l.graph }} · index {{ l.index }} · ontology {{ l.ontology }}
+          · calibration {{ l.calibration }}
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="card">
+    <div class="card-pad" style="border-bottom: 1px solid var(--line)">
+      <h2>Candidates and history</h2>
+      <p class="muted tiny">
+        Accuracy alone never decides. A candidate is promotable only when every reference
+        arm lands in tolerance, no citation falls outside the admitted set, and it does not
+        regress the live pin.
+      </p>
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Release</th>
+            <th class="num">Accuracy</th>
+            <th class="num">Coverage</th>
+            <th class="num">Leak</th>
+            <th class="num">Margin</th>
+            <th>Reference arms</th>
+            <th>Gate</th>
+            <th>State</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of all(); track r.release) {
+            <tr>
+              <td>
+                <div class="mono" style="font-weight: 600">{{ r.release }}</div>
+                <div class="muted tiny">calibration {{ r.calibration }}</div>
+              </td>
+              <td class="num">
+                {{ r.test_accuracy | percent: '1.1-1' }}
+                @if (delta(r, 'test_accuracy'); as d) {
+                  <div class="tiny" [class.up]="d > 0" [class.down]="d < 0">
+                    {{ d > 0 ? '+' : '' }}{{ d * 100 | number: '1.1-1' }} pts
+                  </div>
+                }
+              </td>
+              <td class="num">{{ r.coverage | percent: '1.1-1' }}</td>
+              <td class="num">{{ r.leak | percent: '1.1-1' }}</td>
+              <td class="num">{{ margin(r) | percent: '1.1-1' }}</td>
+              <td>
+                <div class="arms">
+                  @for (a of r.arms; track a.arm) {
+                    <span class="arm" [class.arm-bad]="!armOk(a)"
+                          [title]="armLabel(a.arm) + ' — expected ' + (a.expected_min * 100) + '–' + (a.expected_max * 100) + '%'">
+                      {{ armOk(a) ? '✓' : '✕' }} {{ a.accuracy | percent: '1.0-0' }}
+                    </span>
+                  }
+                </div>
+              </td>
+              <td>
+                @if (passes(r)) {
+                  <span class="chip chip-ok">✓ passes</span>
+                } @else {
+                  <span class="chip chip-fail">✕ {{ failures(r).length }} blocker(s)</span>
+                }
+              </td>
+              <td><span [class]="stateChip(r.state)">{{ r.state }}</span></td>
+              <td>
+                <button class="btn btn-secondary" (click)="select(r)">Review</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+@if (selected(); as r) {
+  <div class="drawer-scrim" (click)="close()"></div>
+  <aside class="drawer" role="dialog" aria-label="Release review">
+    <header class="drawer-head">
+      <div>
+        <h2 class="mono">{{ r.release }}</h2>
+        <p class="muted tiny">{{ r.state }} · created {{ r.created_at }}</p>
+      </div>
+      <button class="btn btn-secondary" (click)="close()">Close</button>
+    </header>
+
+    <div class="drawer-body stack">
+      <section>
+        <span class="metric-label">Reference arms</span>
+        <p class="muted tiny" style="margin: .25rem 0 .5rem">
+          Always run, never selectable as the winner. They test the instrument, not the model.
+        </p>
+        <table class="data mini">
+          <tbody>
+            @for (a of r.arms; track a.arm) {
+              <tr>
+                <td>{{ armLabel(a.arm) }}</td>
+                <td class="num">{{ a.accuracy | percent: '1.1-1' }}</td>
+                <td class="num muted tiny">
+                  expect {{ a.expected_min | percent: '1.0-0' }}–{{ a.expected_max | percent: '1.0-0' }}
+                </td>
+                <td>
+                  @if (armOk(a)) {
+                    <span class="chip chip-ok">✓ in range</span>
+                  } @else {
+                    <span class="chip chip-fail">✕ out of range</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <span class="metric-label">Error budget</span>
+        @for (b of r.error_budget; track b.cause) {
+          <div class="budget">
+            <div class="row-between tiny">
+              <strong>{{ b.cause }}</strong>
+              <span class="mono">{{ b.share | percent: '1.0-0' }}</span>
+            </div>
+            <div class="bar"><span class="bar-fill" [style.width.%]="b.share * 100"></span></div>
+            <div class="muted tiny">{{ b.note }}</div>
+          </div>
+        }
+      </section>
+
+      <section>
+        <span class="metric-label">Gate</span>
+        @if (passes(r)) {
+          <div class="ok-banner" style="margin-top: .5rem">
+            <strong>✓ All gate conditions met.</strong>
+          </div>
+        } @else {
+          <ul class="blockers">
+            @for (f of failures(r); track f) { <li>{{ f }}</li> }
+          </ul>
+        }
+      </section>
+    </div>
+
+    <footer class="drawer-foot">
+      @if (promoted(); as p) {
+        <div class="ok-banner">
+          @if (p === 'rolled-back') {
+            <strong>Pointer moved back to the previous manifest.</strong>
+          } @else {
+            <strong>{{ p }} promoted.</strong>
+            <span class="tiny">Serving resolves the new pointer on the next query.</span>
+          }
+        </div>
+      } @else if (r.state === 'candidate') {
+        <div class="confirm">
+          <label class="field">
+            <span>Type <span class="mono">{{ r.release }}</span> to confirm</span>
+            <input type="text" [value]="confirmText()" (input)="onConfirm($event)"
+                   [disabled]="!passes(r)" placeholder="release id" />
+          </label>
+          <button class="btn btn-primary" [disabled]="!canPromote(r)" (click)="promote(r)">
+            Promote
+          </button>
+        </div>
+      } @else {
+        <span class="muted tiny">
+          Only a candidate can be promoted. This release is {{ r.state }}.
+        </span>
+      }
+    </footer>
+  </aside>
+}

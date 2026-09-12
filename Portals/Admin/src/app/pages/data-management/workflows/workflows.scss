@@ -29,6 +29,9 @@
   background: linear-gradient(180deg, var(--brand-050), var(--surface));
 }
 .drawer-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
+/* The drawer body no longer stretches the footer away from the content it
+ * describes: the queued banner renders inline, directly under the request body. */
+.drawer-body > .ok-banner { margin-top: 0; }
 .drawer-foot {
   display: flex; align-items: center; gap: .625rem;
   padding: 1rem 1.25rem;

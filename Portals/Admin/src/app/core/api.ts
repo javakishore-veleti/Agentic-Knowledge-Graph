@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import {
-  DataSet, TechStack, WorkflowBatch, WorkflowDefinition, WorkflowExecution, WorkflowStatus,
+  DataSet, Release, TechStack, Trace, WorkflowBatch, WorkflowDefinition, WorkflowExecution,
+  WorkflowStatus,
 } from './models';
 
 /** Mock data source.
@@ -215,5 +216,166 @@ export class Api {
       },
     ];
     return batchId ? all.filter((e) => e.wf_batch_id === batchId) : all;
+  }
+
+  releases(): Release[] {
+    // The live pin plus two candidates: one that passes every gate and one that fails
+    // in the most instructive way -- a shuffled-label arm scoring above chance, which
+    // means the harness itself is broken and the headline number cannot be trusted.
+    const arms = (oracle: number, blind: number, maj: number, shuf: number) => [
+      { arm: 'oracle' as const, accuracy: oracle, expected_min: 0.95, expected_max: 1.0 },
+      { arm: 'blind' as const, accuracy: blind, expected_min: 0.30, expected_max: 0.45 },
+      { arm: 'majority_class' as const, accuracy: maj, expected_min: 0.50, expected_max: 0.56 },
+      { arm: 'shuffled_label' as const, accuracy: shuf, expected_min: 0.28, expected_max: 0.39 },
+    ];
+    const budget = (retrieval: number, grounding: number, gen: number, cal: number) => [
+      { cause: 'Grounding miss', share: grounding,
+        note: 'question concept never mapped; the binding constraint' },
+      { cause: 'Retrieval rank', share: retrieval,
+        note: 'gold document outside the read window' },
+      { cause: 'Generation', share: gen, note: 'evidence admitted, answer still wrong' },
+      { cause: 'Calibration', share: cal, note: 'answered when it should have abstained' },
+    ];
+    return [
+      {
+        release: 'rel-2026.09.12-02', created_at: this.iso(35), state: 'candidate',
+        graph: '2026.09.12-a3f9c1', index: '2026.09.12-7b21de',
+        ontology: 'mesh-2026', calibration: 'cal-2026.09.12-02',
+        test_accuracy: 0.841, coverage: 0.712, leak: 0.041,
+        gold_in_top_16: 0.953, unadmitted_citations: 0,
+        arms: arms(0.981, 0.372, 0.533, 0.341),
+        error_budget: budget(0.19, 0.52, 0.21, 0.08),
+      },
+      {
+        release: 'rel-2026.09.12-01', created_at: this.iso(60 * 9), state: 'live',
+        graph: '2026.09.12-a3f9c1', index: '2026.09.12-7b21de',
+        ontology: 'mesh-2026', calibration: 'cal-2026.09.10-01',
+        test_accuracy: 0.832, coverage: 0.706, leak: 0.043,
+        gold_in_top_16: 0.951, unadmitted_citations: 0,
+        arms: arms(0.979, 0.372, 0.533, 0.338),
+        error_budget: budget(0.21, 0.50, 0.21, 0.08),
+      },
+      {
+        release: 'rel-2026.09.11-03', created_at: this.iso(60 * 28), state: 'rejected',
+        graph: '2026.09.11-c4d8e2', index: '2026.09.11-9a02bb',
+        ontology: 'mesh-2026', calibration: 'cal-2026.09.11-01',
+        test_accuracy: 0.869, coverage: 0.744, leak: 0.038,
+        gold_in_top_16: 0.948, unadmitted_citations: 2,
+        // Accuracy looks like the best of the three. It is not trustworthy: the
+        // shuffled-label arm scored well above chance, so labels leaked into features.
+        arms: arms(0.984, 0.371, 0.534, 0.512),
+        error_budget: budget(0.24, 0.46, 0.22, 0.08),
+      },
+    ];
+  }
+
+  traces(): Trace[] {
+    return [
+      {
+        answer_id: 'ans-7f3c1a92',
+        question: 'Does metformin reduce cardiovascular mortality in type 2 diabetes?',
+        trace_id: 'trace-8c1d9e4f7b13', tenant_id: 'reference', asked_at: this.iso(12),
+        concepts: [
+          { concept_id: 'D008687', name: 'Metformin', role: 'bridge', is_check_tag: false },
+          { concept_id: 'D003924', name: 'Diabetes Mellitus, Type 2', role: 'bridge', is_check_tag: false },
+          { concept_id: 'D002318', name: 'Cardiovascular Diseases', role: 'filter', is_check_tag: false },
+          { concept_id: 'D006801', name: 'Humans', role: 'ignore', is_check_tag: true },
+        ],
+        candidates: [
+          { doc_id: '12345678', title: 'Metformin and cardiovascular outcomes in type 2 diabetes',
+            dense_score: 0.812, rerank_score: 0.941, route: 'co_annotation',
+            reason: 'directly about both bridge concepts', path: ['12345678'],
+            retracted: false, quotable: true, admitted: true, cited: true },
+          { doc_id: '23456789', title: 'Biguanides and macrovascular risk: a pooled analysis',
+            dense_score: 0.774, rerank_score: 0.882, route: 'ontology_ancestry',
+            reason: 'Biguanides is an ancestor of Metformin',
+            path: ['23456789', 'D008687'], retracted: false, quotable: true,
+            admitted: true, cited: true },
+          { doc_id: '34567890', title: 'Glycaemic control and mortality: cohort review',
+            dense_score: 0.731, rerank_score: 0.640, route: 'citation_adjacency',
+            reason: 'cited by a document about Metformin',
+            path: ['34567890', '12345678'], retracted: false, quotable: true,
+            admitted: true, cited: false },
+          { doc_id: '45678901', title: 'Retracted: metformin cardioprotection in mice',
+            dense_score: 0.706, route: 'co_annotation',
+            reason: 'shares both bridge concepts', path: ['45678901'],
+            // Retained as a candidate and annotated, not silently dropped: certification
+            // annotates. It is excluded from the admitted set by the retraction rule.
+            retracted: true, quotable: true, admitted: false, cited: false },
+        ],
+        gates: [
+          { gate: 'entry point', passed: true, detail: '2 bridge concepts grounded' },
+          { gate: 'concept count', passed: true, detail: '3 specific concepts after check tags removed' },
+          { gate: 'path exists', passed: true, detail: 'co-annotation route on top candidate' },
+          { gate: 'quotable', passed: true, detail: 'abstract present on 3 of 4 candidates' },
+          { gate: 'not only retracted', passed: true, detail: '1 retracted candidate excluded' },
+          { gate: 'evidence as of date', passed: true, detail: 'no as-of constraint' },
+        ],
+        posterior: { yes: 0.8402, no: 0.1203, maybe: 0.0395 },
+        raw_confidence: 0.8402, calibrated_confidence: 0.7221, threshold: 0.62,
+        disposition: 'ANSWER',
+        answer_text:
+          'Metformin was associated with lower cardiovascular mortality in type 2 diabetes ' +
+          '[12345678], with pooled analyses of biguanides showing a consistent direction of ' +
+          'effect [23456789].',
+        pins: { graph: '2026.09.12-a3f9c1', index: '2026.09.12-7b21de',
+                ontology: 'mesh-2026', calibration: 'cal-2026.09.10-01' },
+      },
+      {
+        answer_id: 'ans-4b02de51',
+        question: 'What is the optimal dose of compound XJ-9921 for hepatic clearance?',
+        trace_id: 'trace-1a4b7c2d9e05', tenant_id: 'reference', asked_at: this.iso(48),
+        concepts: [
+          { concept_id: 'D005355', name: 'Liver', role: 'filter', is_check_tag: false },
+          { concept_id: 'D006801', name: 'Humans', role: 'ignore', is_check_tag: true },
+        ],
+        candidates: [],
+        gates: [
+          // Fails at the first gate, so no generator call was made and nothing was spent.
+          { gate: 'entry point', passed: false,
+            detail: '"XJ-9921" matched no known concept; only a filter concept remained' },
+          { gate: 'concept count', passed: false, detail: '0 bridge concepts' },
+          { gate: 'path exists', passed: false, detail: 'not evaluated' },
+          { gate: 'quotable', passed: false, detail: 'not evaluated' },
+          { gate: 'not only retracted', passed: false, detail: 'not evaluated' },
+          { gate: 'evidence as of date', passed: false, detail: 'not evaluated' },
+        ],
+        threshold: 0.62,
+        disposition: 'REFUSE', refusal_reason: 'no_entry_point',
+        pins: { graph: '2026.09.12-a3f9c1', index: '2026.09.12-7b21de',
+                ontology: 'mesh-2026', calibration: 'cal-2026.09.10-01' },
+      },
+      {
+        answer_id: 'ans-9d71fa30',
+        question: 'Is aspirin effective for primary prevention of stroke?',
+        as_of: '2015-01-01',
+        trace_id: 'trace-33e9a1b0c7f2', tenant_id: 'reference', asked_at: this.iso(120),
+        concepts: [
+          { concept_id: 'D001241', name: 'Aspirin', role: 'bridge', is_check_tag: false },
+          { concept_id: 'D020521', name: 'Stroke', role: 'bridge', is_check_tag: false },
+        ],
+        candidates: [
+          { doc_id: '56789012', title: 'Aspirin in primary prevention: 2019 meta-analysis',
+            dense_score: 0.864, rerank_score: 0.912, route: 'co_annotation',
+            reason: 'shares both bridge concepts',
+            path: ['56789012'], retracted: false, quotable: true,
+            // Published after the as-of date, so excluded from evidence and citations.
+            admitted: false, cited: false },
+        ],
+        gates: [
+          { gate: 'entry point', passed: true, detail: '2 bridge concepts grounded' },
+          { gate: 'concept count', passed: true, detail: '2 specific concepts' },
+          { gate: 'path exists', passed: true, detail: 'co-annotation route found' },
+          { gate: 'quotable', passed: true, detail: 'abstract present' },
+          { gate: 'not only retracted', passed: true, detail: 'no retracted candidates' },
+          { gate: 'evidence as of date', passed: false,
+            detail: 'every candidate published after 2015-01-01' },
+        ],
+        threshold: 0.62,
+        disposition: 'REFUSE', refusal_reason: 'no_evidence_as_of_date',
+        pins: { graph: '2026.09.12-a3f9c1', index: '2026.09.12-7b21de',
+                ontology: 'mesh-2026', calibration: 'cal-2026.09.10-01' },
+      },
+    ];
   }
 }

@@ -31,3 +31,13 @@
 
 .cell-title { font-weight: 600; color: var(--ink-900); }
 .empty { text-align: center; padding: 2.5rem; color: var(--ink-500); }
+
+.lower { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; }
+.ready-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: .8125rem;
+}
+.ready-row:last-child { border-bottom: none; }
+.ready-name { font-weight: 560; }

@@ -1,0 +1,210 @@
+<div class="stack">
+  <div class="row-between">
+    <div>
+      <h1>Traces</h1>
+      <p class="muted tiny">
+        Every answer, openable by id: the concepts grounded from the question, each
+        candidate's admissibility route, the confidence, and the decision that followed.
+      </p>
+    </div>
+    <input type="search" placeholder="Answer id, trace id, or question…"
+           (input)="onQuery($event)" style="width: 300px" />
+  </div>
+
+  <div class="trace-layout">
+    <div class="card trace-list">
+      @for (t of rows(); track t.answer_id) {
+        <button class="trace-item" [class.is-open]="openId() === t.answer_id"
+                (click)="select(t.answer_id)">
+          <div class="row-between">
+            <span class="mono">{{ t.answer_id }}</span>
+            <span [class]="dispositionChip(t.disposition)">{{ t.disposition }}</span>
+          </div>
+          <div class="trace-q">{{ t.question }}</div>
+          <div class="muted tiny">
+            {{ admittedCount(t) }} admitted · {{ t.candidates.length }} candidates
+            @if (t.as_of) { · as of {{ t.as_of }} }
+          </div>
+        </button>
+      } @empty {
+        <div class="empty tiny muted">No trace matches that search.</div>
+      }
+    </div>
+
+    @if (open(); as t) {
+      <div class="stack trace-detail">
+        <div class="card card-pad">
+          <div class="row-between">
+            <div>
+              <h2>{{ t.question }}</h2>
+              <p class="muted tiny mono">
+                {{ t.answer_id }} · {{ t.trace_id }} · tenant {{ t.tenant_id }}
+              </p>
+            </div>
+            <button class="btn btn-secondary" (click)="exportTrace(t)">Export JSON</button>
+          </div>
+        </div>
+
+        <!-- 1. grounding -->
+        <div class="card card-pad">
+          <span class="step">1 · Grounding</span>
+          <p class="muted tiny">
+            Lexical and dense span matching only. No model touches an identifier here.
+          </p>
+          <div class="concepts">
+            @for (c of t.concepts; track c.concept_id) {
+              <span class="concept" [class.role-bridge]="c.role === 'bridge'"
+                    [class.role-filter]="c.role === 'filter'"
+                    [class.role-ignore]="c.role === 'ignore'">
+                <strong>{{ c.name }}</strong>
+                <span class="mono">{{ c.concept_id }}</span>
+                <em>{{ c.role }}</em>
+                @if (c.is_check_tag) { <span class="tag">check tag</span> }
+              </span>
+            }
+          </div>
+        </div>
+
+        <!-- 2. candidates -->
+        <div class="card">
+          <div class="card-pad" style="padding-bottom: .75rem">
+            <span class="step">2 · Candidates and admissibility</span>
+            <p class="muted tiny">
+              Dense retrieval ranks; the graph annotates a route. Certification never
+              removes a candidate, and it never enters the score.
+            </p>
+          </div>
+          @if (t.candidates.length) {
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Document</th>
+                    <th class="num">Dense</th>
+                    <th class="num">Rerank</th>
+                    <th>Route</th>
+                    <th>Why</th>
+                    <th>Admitted</th>
+                    <th>Cited</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of t.candidates; track c.doc_id) {
+                    <tr [class.row-excluded]="!c.admitted">
+                      <td>
+                        <div style="font-weight: 600">{{ c.title }}</div>
+                        <div class="mono">
+                          {{ c.doc_id }}
+                          @if (c.retracted) { <span class="tag tag-bad">retracted</span> }
+                          @if (!c.quotable) { <span class="tag">not quotable</span> }
+                        </div>
+                      </td>
+                      <td class="num mono">{{ c.dense_score | number: '1.3-3' }}</td>
+                      <td class="num mono">
+                        {{ c.rerank_score !== undefined ? (c.rerank_score | number: '1.3-3') : '—' }}
+                      </td>
+                      <td><span [class]="routeChip(c.route)">{{ routeLabel(c.route) }}</span></td>
+                      <td class="tiny">
+                        {{ c.reason }}
+                        @if (c.path.length > 1) {
+                          <div class="mono path">{{ c.path.join(' → ') }}</div>
+                        }
+                      </td>
+                      <td>
+                        @if (c.admitted) {
+                          <span class="chip chip-ok">✓ yes</span>
+                        } @else {
+                          <span class="chip chip-fail">✕ no</span>
+                        }
+                      </td>
+                      <td>
+                        @if (c.cited) {
+                          <span class="chip chip-ok">✓ cited</span>
+                        } @else {
+                          <span class="muted tiny">—</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <div class="card-pad muted tiny">
+              No candidates were retrieved — the question failed a gate before retrieval ran.
+            </div>
+          }
+        </div>
+
+        <!-- 3. gates -->
+        <div class="card card-pad">
+          <span class="step">3 · Structural gates</span>
+          <p class="muted tiny">
+            Vetoes, evaluated in order before the generator. A structural refusal costs no
+            model call.
+          </p>
+          <ol class="gates">
+            @for (g of t.gates; track g.gate) {
+              <li [class.gate-fail]="!g.passed">
+                <span class="gate-mark">{{ g.passed ? '✓' : '✕' }}</span>
+                <span class="gate-name">{{ g.gate }}</span>
+                <span class="gate-detail muted tiny">{{ g.detail }}</span>
+              </li>
+            }
+          </ol>
+        </div>
+
+        <!-- 4. confidence -->
+        <div class="card card-pad">
+          <span class="step">4 · Confidence and decision</span>
+          @if (t.posterior) {
+            <div class="posterior">
+              @for (k of ['yes', 'no', 'maybe']; track k) {
+                <div class="post-row">
+                  <span class="post-label">{{ k }}</span>
+                  <div class="bar">
+                    <span class="bar-fill" [style.width.%]="(t.posterior[k] || 0) * 100"></span>
+                  </div>
+                  <span class="mono">{{ t.posterior[k] | percent: '1.1-1' }}</span>
+                </div>
+              }
+            </div>
+            <div class="conf-line">
+              <span>raw <strong class="mono">{{ t.raw_confidence | percent: '1.1-1' }}</strong></span>
+              @if (bias(t); as b) {
+                <span class="muted">calibration bias
+                  <strong class="mono">{{ b > 0 ? '+' : '' }}{{ b | percent: '1.1-1' }}</strong>
+                </span>
+              }
+              <span>calibrated
+                <strong class="mono">{{ t.calibrated_confidence | percent: '1.1-1' }}</strong>
+              </span>
+              <span class="muted">threshold
+                <strong class="mono">{{ t.threshold | percent: '1.0-0' }}</strong>
+              </span>
+            </div>
+          } @else {
+            <p class="muted tiny">
+              The generator was never called, so there is no posterior to show.
+            </p>
+          }
+
+          <div class="decision" [class.decision-refuse]="t.disposition !== 'ANSWER'">
+            <span [class]="dispositionChip(t.disposition)">{{ t.disposition }}</span>
+            @if (t.refusal_reason) {
+              <span class="mono">{{ t.refusal_reason }}</span>
+            }
+            @if (t.answer_text) {
+              <p class="answer">{{ t.answer_text }}</p>
+            }
+          </div>
+
+          <div class="pins mono">
+            graph {{ t.pins.graph }} · index {{ t.pins.index }} · ontology {{ t.pins.ontology }}
+            · calibration {{ t.pins.calibration }}
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>
