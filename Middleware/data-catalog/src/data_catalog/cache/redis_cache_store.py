@@ -129,6 +129,21 @@ class RedisCacheStore(ICacheStore):
         except Exception:
             return 0
 
+    def evict_prefix(self, cache_name: str, prefix: str) -> int:
+        client = self._redis()
+        if client is None:
+            return 0
+        try:
+            n = 0
+            # SCAN, never KEYS: KEYS blocks the server for the length of the keyspace.
+            for key in client.scan_iter(match=f"{self._prefix}:{prefix}*", count=500):
+                client.delete(key)
+                n += 1
+            self._evictions[cache_name] = self._evictions.get(cache_name, 0) + n
+            return n
+        except Exception:
+            return 0
+
     def clear(self, cache_name: str | None = None) -> None:
         client = self._redis()
         if client is None:

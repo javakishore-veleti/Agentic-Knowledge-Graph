@@ -151,7 +151,8 @@ from ..tasks.workflow_tasks import (  # noqa: E402
     AttachWorkflowTask, BuildCreateMioRespTask, BuildInvokeRespTask,
     BuildWorkflowsRespTask, CountWorkflowsTask, CreateMioTask, DeleteMioTask,
     DetachWorkflowTask, FetchMioWorkflowsTask, FetchWorkflowsTask,
-    RecordInvocationTask, ResolveWorkflowForInvokeTask, SubmitToOrchestratorTask,
+    InvalidateMioCachesTask, RecordInvocationTask, ResolveWorkflowForInvokeTask,
+    SubmitToOrchestratorTask,
     UpdateMioTask, ValidateCreateMioTask, ValidateInvokeParamsTask,
     ValidateMioTransitionTask,
     VerifyMioForWriteTask,
@@ -177,6 +178,7 @@ class CreateMioWf(IWorkflow):
     def __init__(self) -> None:
         self._tasks: tuple[ITask, ...] = (
             ValidateCreateMioTask(), CreateMioTask(), BuildCreateMioRespTask(),
+            InvalidateMioCachesTask(),
         )
 
     def tasks(self) -> tuple[ITask, ...]:
@@ -189,6 +191,7 @@ class UpdateMioWf(IWorkflow):
     def __init__(self) -> None:
         self._tasks: tuple[ITask, ...] = (
             VerifyMioForWriteTask(), ValidateMioTransitionTask(), UpdateMioTask(),
+            InvalidateMioCachesTask(),
         )
 
     def tasks(self) -> tuple[ITask, ...]:
@@ -199,7 +202,9 @@ class DeleteMioWf(IWorkflow):
     name = "delete_mio_wf"
 
     def __init__(self) -> None:
-        self._tasks: tuple[ITask, ...] = (VerifyMioForWriteTask(), DeleteMioTask())
+        self._tasks: tuple[ITask, ...] = (
+            VerifyMioForWriteTask(), DeleteMioTask(), InvalidateMioCachesTask(),
+        )
 
     def tasks(self) -> tuple[ITask, ...]:
         return self._tasks

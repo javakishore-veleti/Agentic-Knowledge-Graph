@@ -113,3 +113,36 @@ def test_limit_is_clamped(client: TestClient) -> None:
     r = client.get("/api/v1/domains", params={"limit": 99999})
     assert r.status_code == 200
     assert r.json()["page"]["limit"] <= 200
+
+
+def test_a_created_mio_is_immediately_visible_in_the_listing(client: TestClient) -> None:
+    """The bug this test exists for: MIO listings are cached, and a write did not
+    invalidate them, so a newly created MIO stayed invisible until the TTL expired.
+
+    The unfiltered listing is the one that mattered: it is stored with no category, so
+    category eviction alone left it stale.
+    """
+    before = client.get("/api/v1/mios")
+    assert before.status_code == 200
+    codes_before = {m["code"] for m in before.json()["items"]}
+
+    r = client.post("/api/v1/mios", json={
+        "domain_code": "biomedical", "code": "cache-probe", "name": "Cache probe",
+        "tech_stack": "csr_graph",
+    })
+    assert r.status_code == 201, r.text
+    mio_id = r.json()["mio"]["mio_id"]
+    try:
+        after = client.get("/api/v1/mios")
+        codes_after = {m["code"] for m in after.json()["items"]}
+        assert "cache-probe" in codes_after, (
+            "a created MIO must appear immediately; a stale cached listing hid it"
+        )
+        assert codes_after > codes_before
+    finally:
+        client.delete(f"/api/v1/mios/{mio_id}")
+
+    gone = client.get("/api/v1/mios")
+    assert "cache-probe" not in {m["code"] for m in gone.json()["items"]}, (
+        "a deleted MIO must disappear immediately for the same reason"
+    )

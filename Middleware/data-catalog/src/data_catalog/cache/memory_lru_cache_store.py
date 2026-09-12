@@ -85,6 +85,17 @@ class MemoryLruCacheStore(ICacheStore):
             self._evictions[cache_name] = self._evictions.get(cache_name, 0) + len(doomed)
             return len(doomed)
 
+    def evict_prefix(self, cache_name: str, prefix: str) -> int:
+        with self._lock:
+            bucket = self._entries.get(cache_name)
+            if not bucket:
+                return 0
+            doomed = [k for k in bucket if k.startswith(prefix)]
+            for k in doomed:
+                del bucket[k]
+            self._evictions[cache_name] = self._evictions.get(cache_name, 0) + len(doomed)
+            return len(doomed)
+
     def clear(self, cache_name: str | None = None) -> None:
         with self._lock:
             if cache_name is None:

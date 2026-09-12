@@ -94,6 +94,14 @@ class AppCacheServiceImpl(IAppCacheService):
             removed += self._local.evict_category(cache_name, scoped)
         return removed
 
+    def evict_all(self, cache_name: str, tenant_id: str) -> int:
+        """Every entry of one cache for one tenant, filtered and unfiltered alike."""
+        prefix = f"{cache_name}:{tenant_id}:"
+        removed = self._shared.evict_prefix(cache_name, prefix)
+        if self._local is not None:
+            removed += self._local.evict_prefix(cache_name, prefix)
+        return removed
+
     def stats(self) -> list[CacheStats]:
         out = list(self._shared.stats())
         if self._local is not None:

@@ -65,4 +65,8 @@ class IAppCacheService(ABC):
     def evict_category(self, cache_name: str, tenant_id: str, category: str) -> int: ...
 
     @abstractmethod
+    def evict_all(self, cache_name: str, tenant_id: str) -> int:
+        """Invalidate every entry of one cache for one tenant. Called after a write."""
+
+    @abstractmethod
     def stats(self) -> list[CacheStats]: ...

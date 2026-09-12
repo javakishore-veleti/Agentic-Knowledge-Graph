@@ -149,6 +149,25 @@ class DeleteMioTask(ITask):
         )
 
 
+class InvalidateMioCachesTask(ITask):
+    """Drop the MIO listings after a write.
+
+    Without this a created MIO is invisible until the TTL expires, because the cached
+    listing still holds the pre-write result. Both the filtered and unfiltered listings
+    go: an unfiltered listing carries no category, so category eviction alone leaves it
+    stale.
+    """
+
+    name = "invalidate_mio_caches"
+
+    def execute(self, ctx: BaseCtx) -> None:
+        from ..cache.i_app_cache_service import IAppCacheService
+        from ..wf.catalog_wf import CACHE_MIOS
+
+        cache: IAppCacheService = SERVICE_FACTORY.get(IAppCacheService)
+        ctx.scratch["cache_evicted"] = cache.evict_all(CACHE_MIOS, ctx.tenant_id)
+
+
 # ---------------------------------------------------------------- association
 
 
