@@ -6,6 +6,11 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NETWORK="${AKG_NETWORK:-akg-net}"
+
+# One Compose project per tier. Sharing a single project name made every tier report the
+# others as orphans -- noise, but also a trap: --remove-orphans anywhere would have
+# deleted the other tiers' containers. Tiers still share the akg-net network, which is how
+# they reach each other.
 [ -f "$HERE/.env" ] || cp "$HERE/.env.example" "$HERE/.env"
 
 command -v docker >/dev/null || { echo "docker not found" >&2; exit 1; }
@@ -28,7 +33,7 @@ for tier in $tiers; do
   compose="$HERE/$tier/docker-compose.yml"
   [ -f "$compose" ] || { echo "!! no compose file for tier '$tier'" >&2; continue; }
   echo "==> up $tier"
-  docker compose --env-file "$HERE/.env" -f "$compose" up -d
+  docker compose -p "akg-$(echo "$tier" | tr "[:upper:]" "[:lower:]")" --env-file "$HERE/.env" -f "$compose" up -d
 done
 
 echo ""
