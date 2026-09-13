@@ -8,6 +8,11 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NETWORK="${AKG_NETWORK:-akg-net}"
 
+# up creates .env from the example; down assumed it already existed, so stopping before
+# ever starting failed on a missing env file. Compose needs it either way, to resolve the
+# ${...} defaults in the tier compose files.
+[ -f "$HERE/.env" ] || cp "$HERE/.env.example" "$HERE/.env"
+
 wipe=""
 args=""
 for a in "$@"; do

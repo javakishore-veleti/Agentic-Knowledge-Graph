@@ -19,21 +19,20 @@ command -v docker >/dev/null || { echo "docker not found" >&2; exit 1; }
 docker info >/dev/null 2>&1 || { echo "docker daemon not running" >&2; exit 1; }
 
 echo "==> Postgres"
-if [ -z "$(docker ps -q -f name="^${PG_CONTAINER}$")" ]; then
-  docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
-  docker run -d --name "$PG_CONTAINER" -p "${PG_PORT}:5432" \
-    -e POSTGRES_USER=akg -e POSTGRES_PASSWORD=akg-local-only -e POSTGRES_DB=akg \
-    pgvector/pgvector:pg16 >/dev/null
-  printf "    waiting"
-  i=0
-  while [ "$i" -lt 60 ]; do
-    docker exec "$PG_CONTAINER" pg_isready -U akg -d akg >/dev/null 2>&1 && break
-    printf "."; i=$((i + 1)); sleep 1
-  done
-  echo " ready"
-else
-  echo "    already running"
-fi
+# Delegated to the compose tier rather than started here with `docker run`.
+#
+# Both existed before, creating the same container name two different ways: a plain
+# `docker run` container carries no compose labels, so `containers:stop-all` found nothing
+# to stop and said so in a warning while Postgres kept running. One owner per container.
+"$HERE/docker-all-up.sh" Postgres >/dev/null
+
+printf "    waiting"
+i=0
+until docker exec "$PG_CONTAINER" pg_isready -U akg -d akg >/dev/null 2>&1; do
+  [ "$i" -ge 60 ] && { echo " TIMEOUT" >&2; docker logs --tail 15 "$PG_CONTAINER" >&2; exit 1; }
+  printf "."; i=$((i + 1)); sleep 1
+done
+echo " ready"
 
 echo "==> migrations"
 # Applied exactly once each, tracked in catalog.schema_migrations (ADR-020). Re-running
