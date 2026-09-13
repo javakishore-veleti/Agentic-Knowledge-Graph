@@ -83,6 +83,10 @@ def acquire_dataset_endpoint():
                 source_uri,
                 endpoint["uri"],
                 endpoint.get("location_kind", ""),
+                # Where "the local filesystem" is, according to the endpoint -- resolved
+                # here, by the process doing the writing, because the answer differs
+                # between this container and the machine that configured it.
+                connection_details=endpoint.get("dest_connection_details"),
                 max_files=int(cfg.get("max_files") or DEFAULT_MAX_FILES),
             )
         except (UnsupportedDestination, TransferRefused) as exc:

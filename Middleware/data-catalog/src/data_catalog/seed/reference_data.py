@@ -342,8 +342,12 @@ def _landing_targets(code: str, version: str) -> list[tuple[str, str, str, bool]
     """
     leaf = f"{code}/{version}"
     return [
-        ("local-fs", "local_fs",
-         f"file://~/runtime_data/AKG/Local/FileSystem/datasets/{leaf}", True),
+        # endpoint:// means "relative to the root this endpoint declares", resolved by
+        # whoever executes the transfer. Not an absolute path and never "~": that expands
+        # to the home of whichever process resolves it, and the resolver is the workflow
+        # runner -- which wrote a real download into a container's own home directory,
+        # where nobody could see it and a recreate deleted it.
+        ("local-fs", "local_fs", f"endpoint://datasets/{leaf}", True),
         ("aws-s3-profile", "s3", f"s3://akg-datasets/{leaf}", False),
         ("azure-blob-cli", "azure_blob",
          f"azure://akg-datasets/{leaf}", False),

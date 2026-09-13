@@ -46,15 +46,63 @@ class TransferResult:
     files: list[str]
 
 
-def local_path(uri: str) -> Path:
-    """Turn a landing URI into a real path.
+def resolve_root(connection_details: dict | None) -> Path:
+    """Where this machine keeps the local filesystem endpoint.
 
-    Accepts file:// and bare paths, and expands ~ -- the seeded local endpoint is written
-    as file://~/runtime_data/... so it stays portable across machines, and a literal "~"
-    directory is the classic result of forgetting this.
+    The endpoint declares the NAME of an environment variable, not a path, precisely
+    because the answer differs per machine: on a laptop it is under the user's home, and
+    inside the Airflow container it is wherever the host directory is mounted. Reading
+    the name from config and the value from the environment is what lets one catalog row
+    describe both.
     """
-    raw = uri[len("file://"):] if uri.startswith("file://") else uri
-    return Path(os.path.expanduser(raw)).resolve()
+    details = connection_details or {}
+    env_names = details.get("env") or {}
+    var = env_names.get("root")
+    if var and os.environ.get(var):
+        return Path(os.path.expanduser(os.environ[var])).resolve()
+
+    default = (details.get("defaults") or {}).get("root") or details.get("root")
+    if default:
+        return Path(os.path.expanduser(default)).resolve()
+
+    raise TransferRefused(
+        "the destination endpoint declares no filesystem root, so there is nowhere to "
+        "write. Set the endpoint's connection_details.env.root or defaults.root."
+    )
+
+
+def local_path(uri: str, connection_details: dict | None = None) -> Path:
+    """Turn a landing URI into a real path on THIS machine.
+
+    A relative uri is resolved against the endpoint's root, which is the intended model:
+    the catalog records which dataset goes where, the endpoint records where "there" is,
+    and they are combined at execution time by whoever is executing.
+
+    An absolute or ~ path is still honoured for endpoints that genuinely name one, but ~
+    is a trap worth naming: it expands to the home of whatever process resolves it, so a
+    DAG running in a container wrote a real download into the container's own home
+    directory, where nobody could see it and a recreate deleted it.
+    """
+    if uri.startswith("endpoint://"):
+        # Explicitly relative to the endpoint's root. The scheme exists so the row says
+        # which rule applies instead of leaving it to be guessed from the shape.
+        raw = uri[len("endpoint://"):]
+    elif uri.startswith("file://"):
+        raw = uri[len("file://"):]
+    else:
+        raw = uri
+
+    if not uri.startswith("endpoint://") and (raw.startswith("~") or os.path.isabs(raw)):
+        return Path(os.path.expanduser(raw)).resolve()
+
+    root = resolve_root(connection_details)
+    # The relative path comes from the catalog, but a stored "../.." must not be able to
+    # write outside the endpoint's root.
+    target = (root / raw).resolve()
+    if not str(target).startswith(str(root)):
+        raise TransferRefused(
+            f"refusing a destination outside the endpoint root: {uri!r}")
+    return target
 
 
 def _safe_name(name: str) -> str:
@@ -74,6 +122,7 @@ def download(
     dest_uri: str,
     dest_kind: str,
     *,
+    connection_details: dict | None = None,
     max_files: int = DEFAULT_MAX_FILES,
     max_bytes: int = DEFAULT_MAX_BYTES,
 ) -> TransferResult:
@@ -85,8 +134,9 @@ def download(
             f"nothing behind it."
         )
 
-    dest = local_path(dest_uri)
+    dest = local_path(dest_uri, connection_details)
     dest.mkdir(parents=True, exist_ok=True)
+    log.info("writing into %s", dest)
 
     scheme = urllib.parse.urlparse(source_uri).scheme.lower()
     if scheme == "ftp":

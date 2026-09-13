@@ -141,8 +141,16 @@ class AcquisitionDaoImpl(_BaseDao, IAcquisitionDao):
                      "           AND src.tenant_id = de.tenant_id "
                      "           AND src.role = 'source' "
                      "         ORDER BY src.is_primary DESC, src.created_at "
-                     "         LIMIT 1) AS source_uri "
+                     "         LIMIT 1) AS source_uri, "
+                     # The destination's configuration, so the runner can resolve where
+                     # "the local filesystem" actually is. It is not the same directory
+                     # on every machine, and a DAG executing in a container resolves the
+                     # same endpoint to a different real path than this process would.
+                     "       ae.connection_details AS dest_connection_details, "
+                     "       ae.code AS dest_endpoint_code "
                      "  FROM catalog.dataset_endpoint de "
+                     "  LEFT JOIN catalog.app_endpoint ae "
+                     "         ON ae.app_endpoint_id = de.app_endpoint_id "
                      " WHERE de.dataset_endpoint_id = :id AND de.tenant_id = :t"),
                 {"id": endpoint_id, "t": tenant_id},
             ).mappings().first()
