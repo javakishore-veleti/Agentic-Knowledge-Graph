@@ -14,6 +14,12 @@ RUN_DIR="$REPO_ROOT/.local-run"
 
 APPS="Admin Customer"
 
+# Ports these portals used BEFORE the move to the 9001 block. A dev server left running
+# on one of these outlives the change, keeps serving a months-old bundle, and answers on
+# a URL still sitting in a browser tab -- which reads as "the app is broken" rather than
+# "you are looking at the wrong port". stop-all sweeps them.
+LEGACY_PORTS="4300 4301"
+
 # AKG local port scheme (ADR-019)
 #   9001  data-catalog API
 #   9002  data-mgmt API

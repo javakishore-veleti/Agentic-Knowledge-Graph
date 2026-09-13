@@ -38,21 +38,59 @@ def _count_inserted(session: Session, statements: list[tuple[str, dict[str, Any]
 # ---------------------------------------------------------------- purposes
 
 
+# The thirteen purposes the platform itself names. These used to be INSERTs in migration
+# 012, which was wrong twice over: a blank database is supposed to hold schema only until
+# an admin presses Load, and a workflow row carries a foreign key to purpose_code -- so
+# with the migration stripped, seeding workflows failed on workflow_purpose_fk with
+# nothing in the message to say the purposes had simply never been loaded.
+#
+# is_system is what a trigger reads to refuse deletion: these describe what the platform
+# does, so a deployment extends the list rather than editing it.
+_SYSTEM_PURPOSES = [
+    ("initial_dataset_load", "Initial dataset loading",
+     "First acquisition of a dataset from its source into a destination", 10),
+    ("incremental_load", "Incremental load",
+     "Deltas since the last acquisition rather than the whole corpus", 20),
+    ("parsing", "Parsing", "Turn acquired files into columnar tables", 30),
+    ("ontology_linking", "Ontology linking",
+     "Resolve text to stable concept identifiers", 40),
+    ("graph_build", "Graph build",
+     "Construct the CSR graph from publisher-supplied edges", 50),
+    ("indexing", "Indexing",
+     "Embed and consolidate shards into one pinnable index", 60),
+    ("validation", "Validation",
+     "Alignment asserts and independent recounts against the source", 70),
+    ("calibration", "Calibration",
+     "Fit the abstention threshold on the held-out dev split", 80),
+    ("evaluation", "Evaluation",
+     "Run the reference arms and the promotion gate", 90),
+    ("retraction", "Retraction handling",
+     "Flag retracted documents so they drop out of citations", 100),
+    ("export", "Export", "Publish a curated copy for downstream consumers", 110),
+    ("reconciliation", "Reconciliation",
+     "Recount caches against their source of truth", 120),
+    ("maintenance", "Maintenance",
+     "Housekeeping: release stuck runs, vacuum, prune", 130),
+]
+
+# The ones a deployment is expected to keep adding to. Not system: these are examples.
+_EXTRA_PURPOSES = [
+    ("dataset_profiling", "Dataset profiling",
+     "Measure shape, nulls and cardinality before anything is built", 140),
+    ("quality_audit", "Quality audit",
+     "Sample and compare derived structures against their source", 150),
+    ("backfill", "Backfill", "Re-run a stage over history after a fix", 160),
+]
+
+
 def seed_purposes(session: Session, tenant_id: str) -> tuple[int, int]:
-    """Purposes ship in migration 012 as system rows; this adds the non-system ones a
-    deployment is expected to extend over time."""
-    rows = [
-        ("dataset_profiling", "Dataset profiling",
-         "Measure shape, nulls and cardinality before anything is built", 140),
-        ("quality_audit", "Quality audit",
-         "Sample and compare derived structures against their source", 150),
-        ("backfill", "Backfill",
-         "Re-run a stage over history after a fix", 160),
-    ]
+    """The purpose vocabulary. Load this first: workflows reference it by foreign key."""
     stmts = [
-        ("INSERT INTO catalog.purpose (purpose_code, name, description, sort_order, is_system) "
-         "VALUES (:c, :n, :d, :o, false) ON CONFLICT (purpose_code) DO NOTHING",
-         {"c": c, "n": n, "d": d, "o": o})
+        ("INSERT INTO catalog.purpose "
+         "  (purpose_code, name, description, sort_order, is_system) "
+         "VALUES (:c, :n, :d, :o, :sys) ON CONFLICT (purpose_code) DO NOTHING",
+         {"c": c, "n": n, "d": d, "o": o, "sys": sys_})
+        for rows, sys_ in ((_SYSTEM_PURPOSES, True), (_EXTRA_PURPOSES, False))
         for c, n, d, o in rows
     ]
     return _count_inserted(session, stmts)
@@ -78,35 +116,144 @@ def seed_domains(session: Session, tenant_id: str) -> tuple[int, int]:
 # ---------------------------------------------------------------- endpoints
 
 
-def seed_endpoints(session: Session, tenant_id: str) -> tuple[int, int]:
-    """Example endpoints beyond the system set.
+# The eleven system endpoints, in the provider model migration 011 introduced. Like the
+# purposes above these were INSERTs in migration 010; they describe how the platform
+# reaches storage, so is_system keeps them undeletable and a deployment adds its own
+# alongside rather than editing these.
+#
+# connection_details keeps plain facts at the top level and variable NAMES under "env".
+# A CHECK depends on that split: flattened, `"password": "AKG_PG_PASSWORD"` is
+# indistinguishable from `"password": "hunter2"` to any rule that only reads keys.
+_SYSTEM_ENDPOINTS = [
+    # (id_suffix, code, name, description, tech_stack, provider, provider_service,
+    #  connection_type, auth_mode, auth_ref, env, host, connection_details)
+    ("01", "local-fs", "Local filesystem", "Files on the machine running the code",
+     "local_fs", "local", "filesystem", "anonymous", "anonymous", None,
+     "local", "localhost",
+     '{"env": {"root": "AKG_LOCAL_DATA_ROOT"},'
+     ' "defaults": {"root": "~/runtime_data/AKG/Local/FileSystem"}}'),
 
-    The eleven system endpoints arrive in migration 010 because they describe how the
-    platform reaches storage rather than what data it holds. These are the kind a
-    deployment adds for itself.
-    """
-    rows = [
-        ("local-fs-scratch", "Local scratch space", "A second local path for experiments",
-         "local", "filesystem", "anonymous", 'localhost',
-         '{"root": "~/runtime_data/AKG/Local/Scratch"}'),
-        ("nas-corpus", "NAS corpus mount", "An on-premises mount, path supplied per machine",
-         "on_prem", "filesystem", "anonymous", 'files.internal',
-         '{"env": {"root": "AKG_NAS_CORPUS_ROOT"}, "defaults": {"root": "/mnt/nas/corpus"}}'),
-    ]
+    ("02", "aws-s3-profile", "AWS S3 (named profile)",
+     "Uses a profile from ~/.aws/credentials on this machine",
+     "s3", "aws", "s3", "profile", "aws_profile", "default",
+     "local", "s3.amazonaws.com",
+     '{"profile": "default",'
+     ' "env": {"bucket": "AKG_AWS_S3_BUCKET", "region": "AKG_AWS_REGION"}}'),
+
+    ("03", "aws-s3-keys", "AWS S3 (access keys)",
+     "Access key and secret supplied by the environment",
+     "s3", "aws", "s3", "env_vars", "env_vars", None,
+     "local", "s3.amazonaws.com",
+     '{"env": {"bucket": "AKG_AWS_S3_BUCKET", "region": "AKG_AWS_REGION",'
+     '         "access_key_id": "AKG_AWS_ACCESS_KEY_ID",'
+     '         "secret_access_key": "AKG_AWS_SECRET_ACCESS_KEY"}}'),
+
+    ("04", "aws-s3-role", "AWS S3 (attached role)",
+     "Instance profile, ECS task role or EKS IRSA",
+     "s3", "aws", "s3", "ambient", "aws_role", None,
+     "aws-dev", "s3.amazonaws.com",
+     '{"env": {"bucket": "AKG_AWS_S3_BUCKET", "region": "AKG_AWS_REGION"}}'),
+
+    ("05", "azure-blob-cli", "Azure Blob (az login)",
+     "Uses the token az login left on this machine",
+     "azure_blob", "azure", "blob_storage", "command", "azure_cli", None,
+     "local", "blob.core.windows.net",
+     # The allowlist requires a named helper; az_cli_token is what azure_cli meant.
+     '{"command": "az_cli_token",'
+     ' "env": {"account": "AKG_AZURE_STORAGE_ACCOUNT",'
+     '         "container": "AKG_AZURE_STORAGE_CONTAINER"}}'),
+
+    ("06", "azure-blob-sp", "Azure Blob (service principal)",
+     "Client id and secret supplied by the environment",
+     "azure_blob", "azure", "blob_storage", "client_credentials",
+     "azure_client_secret", None, "azure-dev", "blob.core.windows.net",
+     '{"env": {"account": "AKG_AZURE_STORAGE_ACCOUNT",'
+     '         "container": "AKG_AZURE_STORAGE_CONTAINER",'
+     '         "tenant_id": "AKG_AZURE_TENANT_ID",'
+     '         "client_id": "AKG_AZURE_CLIENT_ID",'
+     '         "client_secret": "AKG_AZURE_CLIENT_SECRET"}}'),
+
+    ("07", "azure-blob-msi", "Azure Blob (managed identity)",
+     "Workload identity inside Azure; no secret at all",
+     "azure_blob", "azure", "blob_storage", "ambient",
+     "azure_managed_identity", None, "azure-prod", "blob.core.windows.net",
+     '{"env": {"account": "AKG_AZURE_STORAGE_ACCOUNT",'
+     '         "container": "AKG_AZURE_STORAGE_CONTAINER"}}'),
+
+    ("11", "pg-local", "PostgreSQL (local)", "Postgres in the local Docker stack",
+     "postgres", "local", "postgres", "env_vars", "env_vars", None,
+     "local", "localhost",
+     '{"host": "localhost", "port": 5432, "database": "akg", "username": "akg",'
+     ' "sslmode": "disable",'
+     ' "env": {"host": "AKG_PG_HOST", "port": "AKG_PG_PORT",'
+     '         "database": "AKG_PG_DATABASE", "username": "AKG_PG_USERNAME",'
+     '         "password": "AKG_PG_PASSWORD"}}'),
+
+    ("12", "pg-aws-rds", "PostgreSQL (AWS RDS)", "Amazon RDS for PostgreSQL",
+     "postgres", "aws", "rds_postgres", "env_vars", "env_vars", None,
+     "aws-dev", "CHANGE-ME.rds.amazonaws.com",
+     '{"port": 5432, "database": "akg", "username": "akg", "sslmode": "require",'
+     ' "env": {"host": "AKG_RDS_PG_HOST", "port": "AKG_RDS_PG_PORT",'
+     '         "database": "AKG_RDS_PG_DATABASE", "username": "AKG_RDS_PG_USERNAME",'
+     '         "password": "AKG_RDS_PG_PASSWORD"}}'),
+
+    ("13", "pg-azure", "PostgreSQL (Azure Flexible Server)",
+     "Azure Database for PostgreSQL",
+     "postgres", "azure", "postgres_flexible_server", "env_vars", "env_vars", None,
+     "azure-dev", "CHANGE-ME.postgres.database.azure.com",
+     '{"port": 5432, "database": "akg", "username": "akg", "sslmode": "require",'
+     ' "env": {"host": "AKG_AZURE_PG_HOST", "port": "AKG_AZURE_PG_PORT",'
+     '         "database": "AKG_AZURE_PG_DATABASE",'
+     '         "username": "AKG_AZURE_PG_USERNAME",'
+     '         "password": "AKG_AZURE_PG_PASSWORD"}}'),
+
+    ("21", "pubmed-ftp", "PubMed baseline (NCBI)",
+     "Public FTP origin of the annual baseline",
+     "ftp", "other", "ftp", "anonymous", "anonymous", None,
+     "local", "ftp.ncbi.nlm.nih.gov",
+     '{"path": "/pubmed/baseline/",'
+     ' "env": {"base_url": "AKG_PUBMED_BASELINE_URL"}}'),
+]
+
+# Not system: the kind of endpoint a deployment adds for itself.
+_EXTRA_ENDPOINTS = [
+    ("local-fs-scratch", "Local scratch space", "A second local path for experiments",
+     "local", "filesystem", "anonymous", "localhost",
+     '{"root": "~/runtime_data/AKG/Local/Scratch"}'),
+    ("nas-corpus", "NAS corpus mount", "An on-premises mount, path supplied per machine",
+     "on_prem", "filesystem", "anonymous", "files.internal",
+     '{"env": {"root": "AKG_NAS_CORPUS_ROOT"}, "defaults": {"root": "/mnt/nas/corpus"}}'),
+]
+
+
+def seed_endpoints(session: Session, tenant_id: str) -> tuple[int, int]:
+    """The eleven system endpoints plus a couple of examples."""
     stmts = [
+        ("INSERT INTO catalog.app_endpoint "
+         "  (app_endpoint_id, code, name, description, tech_stack, provider, "
+         "   provider_service, connection_type, connection_details, auth_mode, "
+         "   auth_ref, env, host, is_system, tenant_id) "
+         "VALUES (:id, :c, :n, :d, :tech, :p, :svc, :ct, CAST(:cd AS jsonb), :am, "
+         "        :ar, :e, :h, true, :t) "
+         # Conflict on the real identity (tenant, env, code), not the primary key: a
+         # fixed id that collides on the code index errors instead of skipping.
+         "ON CONFLICT (tenant_id, env, code) DO NOTHING",
+         {"id": f"00000000-0000-4000-8000-0000000000{sfx}", "c": c, "n": n, "d": desc,
+          "tech": tech, "p": prov, "svc": svc, "ct": ct, "cd": cd, "am": am, "ar": ar,
+          "e": env, "h": host, "t": tenant_id})
+        for sfx, c, n, desc, tech, prov, svc, ct, am, ar, env, host, cd
+        in _SYSTEM_ENDPOINTS
+    ] + [
         ("INSERT INTO catalog.app_endpoint "
          "  (app_endpoint_id, code, name, description, tech_stack, provider, "
          "   provider_service, connection_type, connection_details, env, host, "
          "   is_system, tenant_id) "
          "VALUES (:id, :c, :n, :d, 'local_fs', :p, :svc, :ct, CAST(:cd AS jsonb), "
          "        'local', :h, false, :t) "
-         # Conflict on the real identity, not the generated id. Migration 013 ships the
-         # same two codes as examples, with different ids -- conflicting on the primary
-         # key would miss that and hit the code-uniqueness index as an error instead.
          "ON CONFLICT (tenant_id, env, code) DO NOTHING",
          {"id": _det("endpoint", f"{tenant_id}:{c}"), "c": c, "n": n, "d": d,
           "p": prov, "svc": svc, "ct": ct, "cd": cd, "h": host, "t": tenant_id})
-        for c, n, d, prov, svc, ct, host, cd in rows
+        for c, n, d, prov, svc, ct, host, cd in _EXTRA_ENDPOINTS
     ]
     return _count_inserted(session, stmts)
 

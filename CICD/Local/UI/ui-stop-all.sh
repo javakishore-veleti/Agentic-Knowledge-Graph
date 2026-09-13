@@ -44,3 +44,21 @@ stop_one() {
 }
 
 for app in $APPS; do stop_one "$app"; done
+
+# Sweep the pre-9001 ports. Guarded by the command name: something unrelated may own
+# 4300 today, and this script's remit is our own dev servers, nothing else.
+for port in $LEGACY_PORTS; do
+  holder="$(listener_pid "$port")"
+  [ -n "$holder" ] || continue
+  cmd="$(ps -o command= -p "$holder" 2>/dev/null || true)"
+  case "$cmd" in
+    *ng*serve*|*angular*)
+      echo "==> stopped a portal on legacy port $port (pid $holder) - the app now lives on 9003/9004"
+      for child in $(pgrep -P "$holder" 2>/dev/null); do kill -TERM "$child" 2>/dev/null || true; done
+      kill -TERM "$holder" 2>/dev/null || true
+      ;;
+    *)
+      echo "==  port $port is held by something that is not one of our portals; leaving it alone"
+      ;;
+  esac
+done

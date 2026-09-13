@@ -10,6 +10,13 @@
 
   @if (loading()) {
     <p class="muted tiny">Loading…</p>
+  } @else if (error(); as e) {
+    <div class="banner bad">
+      <strong>Nothing to show.</strong> {{ e }}
+      <button class="btn btn-secondary" style="margin-left: .75rem" (click)="refresh()">
+        Retry
+      </button>
+    </div>
   } @else {
     @if (allLoaded()) {
       <div class="banner ok">

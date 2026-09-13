@@ -32,6 +32,10 @@ export class InitialData {
   readonly loading = signal(true);
   readonly busy = signal<string | null>(null);
   readonly message = signal<{ kind: 'ok' | 'warn' | 'bad'; text: string } | null>(null);
+  /** Why the list is empty. Without this the page rendered its heading and nothing else
+   *  when the service was unreachable, which looks like "there is nothing to load"
+   *  rather than "I could not ask". */
+  readonly error = signal<string | null>(null);
 
   readonly copy: Record<string, EntityCopy> = {
     purposes: {
@@ -73,9 +77,25 @@ export class InitialData {
   constructor() { this.refresh(); }
 
   refresh(): void {
+    this.error.set(null);
+    // Also clear the last action's banner. A failure message that outlives the refresh
+    // sits above rows that have since loaded and contradicts them.
+    this.message.set(null);
     this.api.initialDataStatus().subscribe({
-      next: (r) => { this.rows.set(r.items); this.loading.set(false); },
-      error: () => { this.rows.set([]); this.loading.set(false); },
+      next: (r) => {
+        this.rows.set(r.items);
+        this.error.set(r.items.length ? null
+          : 'The service returned no entities to load, which should not happen.');
+        this.loading.set(false);
+      },
+      error: (e) => {
+        this.rows.set([]);
+        this.loading.set(false);
+        this.error.set(
+          e?.error?.detail ??
+          `Could not reach the DataCatalog service. Check it is running: ` +
+          `npm run local:middleware:status-all`);
+      },
     });
   }
 
