@@ -27,3 +27,11 @@ table.data.mini th, table.data.mini td { padding: .4375rem .625rem; }
   margin-top: .4375rem; padding: .4375rem .625rem; border-radius: var(--radius-sm);
   background: var(--amber-100); color: var(--amber-700);
 }
+
+/* Outcome of an acquisition, next to the button that started it. */
+.row-note {
+  margin: .4rem 0 0; padding: .4rem .6rem; border-radius: 8px; font-size: .8rem;
+  &.ok   { background: var(--ok-bg);   color: var(--ok-ink); }
+  &.warn { background: var(--warn-bg); color: var(--warn-ink); }
+  &.bad  { background: var(--bad-bg);  color: var(--bad-ink); }
+}

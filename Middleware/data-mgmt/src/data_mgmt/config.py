@@ -22,9 +22,14 @@ class Settings(BaseSettings):
     airflow_timeout_seconds: float = 10.0
 
     #: Where Airflow should call back. Must be reachable FROM the Airflow container, which
-    #: is not the same as reachable from this process -- inside Compose that is a service
-    #: name, not localhost.
-    catalog_callback_url: str = "http://akg-data-catalog:9001"
+    #: is not the same as reachable from this process.
+    #:
+    #: The default is host.docker.internal because in local development Airflow runs in a
+    #: container while data-catalog runs on the host: a Compose service name does not
+    #: resolve across that boundary, and the DAG failed on its first callback with a name
+    #: lookup error that said nothing about why. Deployments where both sides are
+    #: containers override this with the service name via AKG_CATALOG_CALLBACK_URL.
+    catalog_callback_url: str = "http://host.docker.internal:9001"
 
     acquisition_dag_id: str = "data_mgmt.acquisition.acquire_dataset_endpoint"
     export_dag_id: str = "data_mgmt.exports.export_dataset_endpoint"

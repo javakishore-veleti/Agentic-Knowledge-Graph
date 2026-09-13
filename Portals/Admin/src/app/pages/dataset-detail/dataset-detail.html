@@ -94,7 +94,14 @@
               @if (l.is_primary) { · primary }
             </span>
             @if (canAcquire(l)) {
-              <button class="btn btn-primary" (click)="acquire(l)">Acquire</button>
+              @if (l.state === 'syncing' || l.sync_wf_status === 'RUNNING') {
+                <span class="muted tiny">Workflow running — this updates itself.</span>
+              } @else {
+                <button class="btn btn-primary" (click)="acquire(l)">Acquire</button>
+              }
+              @if (notes()[l.dataset_endpoint_id]; as n) {
+                <p [class]="'row-note ' + n.kind">{{ n.text }}</p>
+              }
             } @else if (l.state === 'syncing') {
               <span class="muted tiny">acquisition running…</span>
             } @else {
