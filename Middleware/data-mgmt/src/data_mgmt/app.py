@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -14,6 +15,8 @@ from .api import acquisition_router
 from .bootstrap import register_all
 from .config import settings
 from .integration.i_clients import ICatalogClient, IOrchestratorClient
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AKG Data Management",
@@ -55,6 +58,12 @@ async def trace_id_middleware(
 
 @app.exception_handler(ServiceError)
 async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
+    # A 5xx hides its message from the client on purpose -- the text of a persistence
+    # failure describes the schema. It must still reach the log, or the operator the
+    # response tells to "quote the trace id" has nothing to look the trace id up in.
+    if exc.status >= 500:
+        log.error("%s [%s] %s", exc.code, exc.trace_id, exc.message, exc_info=exc)
+
     return JSONResponse(
         status_code=exc.status,
         content={

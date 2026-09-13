@@ -16,6 +16,11 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      # Every DAG here is schedule=None -- triggered by the orchestrator, never by a
+      # timer -- so unpausing cannot make anything run on its own. Left paused (the
+      # default) a triggered run sits in "queued" forever, which reads from the portal as
+      # a workflow that started and then hung.
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
         postgresql+psycopg2://${POSTGRES_USER:-akg}:${POSTGRES_PASSWORD:-akg-local-only}@akg-postgres:5432/${POSTGRES_DB:-akg}
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags

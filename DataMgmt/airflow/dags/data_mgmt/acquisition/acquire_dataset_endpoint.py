@@ -15,9 +15,12 @@ from datetime import timedelta
 from typing import Any
 
 from airflow.decorators import dag, task
+from airflow.exceptions import AirflowFailException
 from airflow.utils.trigger_rule import TriggerRule
 from akg_common import CatalogCallback, require_conf
-from akg_common.transfer import DEFAULT_MAX_FILES, download
+from akg_common.transfer import (
+    DEFAULT_MAX_FILES, TransferRefused, UnsupportedDestination, download,
+)
 from pendulum import datetime as pdt
 
 log = logging.getLogger(__name__)
@@ -75,12 +78,19 @@ def acquire_dataset_endpoint():
                 "the catalog returned no source location for this dataset; "
                 "there is nothing to download from"
             )
-        result = download(
-            source_uri,
-            endpoint["uri"],
-            endpoint.get("location_kind", ""),
-            max_files=int(cfg.get("max_files") or DEFAULT_MAX_FILES),
-        )
+        try:
+            result = download(
+                source_uri,
+                endpoint["uri"],
+                endpoint.get("location_kind", ""),
+                max_files=int(cfg.get("max_files") or DEFAULT_MAX_FILES),
+            )
+        except (UnsupportedDestination, TransferRefused) as exc:
+            # Permanent, so do not retry: a destination kind with no implementation will
+            # not have one two minutes from now. Retrying it only delays the failure
+            # report by the full retry budget -- four minutes of an endpoint sitting
+            # RUNNING before the portal is told anything went wrong.
+            raise AirflowFailException(str(exc)) from exc
         log.info("wrote %d file(s), %d bytes: %s",
                  result.object_count, result.bytes, ", ".join(result.files))
         return {"bytes": result.bytes, "object_count": result.object_count}

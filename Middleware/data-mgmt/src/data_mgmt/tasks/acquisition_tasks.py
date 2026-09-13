@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from akg_service_core import SERVICE_FACTORY, BaseCtx, ITask, NotFoundError
@@ -9,6 +10,9 @@ from akg_service_core import SERVICE_FACTORY, BaseCtx, ITask, NotFoundError
 from ..config import settings
 from ..dtos.acquisition_dtos import AcquireDatasetResp, AcquisitionStatusResp
 from ..integration.i_clients import ICatalogClient, IOrchestratorClient
+
+
+log = logging.getLogger(__name__)
 
 
 class MintExecIdTask(ITask):
@@ -72,29 +76,44 @@ class TriggerWorkflowTask(ITask):
             "catalog_callback_url": settings.catalog_callback_url,
             **ctx.req.params,
         }
-        handle = orchestrator.start(
-            engine=settings.acquisition_engine,
-            workflow_ref=settings.acquisition_workflow_ref,
-            run_key=ctx.scratch["run_key"],
-            conf=conf,
-            # Ties the run back to the endpoint without the orchestrator needing to know
-            # what a dataset endpoint is.
-            caller_ref={"dataset_endpoint_id": str(ctx.req.dataset_endpoint_id),
-                        "service": "data-mgmt"},
-            trace_id=ctx.trace_id,
-        )
+        # try/except around the WHOLE submission, not just its unhappy return values.
+        # An unexpected exception here used to leave the endpoint claimed forever: the
+        # claim was taken, the raise skipped the release, and the row sat RUNNING with no
+        # run behind it -- which even `force` cannot reclaim, because force overrides
+        # "already available", not "already running". One missing attribute stranded the
+        # endpoint until someone edited the database.
+        try:
+            handle = orchestrator.start(
+                engine=settings.acquisition_engine,
+                workflow_ref=settings.acquisition_workflow_ref,
+                run_key=ctx.scratch["run_key"],
+                conf=conf,
+                # Ties the run back to the endpoint without the orchestrator needing to
+                # know what a dataset endpoint is.
+                caller_ref={"dataset_endpoint_id": str(ctx.req.dataset_endpoint_id),
+                            "service": "data-mgmt"},
+                trace_id=ctx.trace_id,
+            )
+            failure = (
+                "orchestrator_unavailable" if handle is None
+                else None if handle.accepted
+                else handle.reason
+            )
+        except Exception as exc:
+            log.exception("submitting the acquisition workflow failed")
+            handle = None
+            failure = f"{type(exc).__name__}: {exc}"
 
-        if handle is None or not handle.accepted:
-            reason = "orchestrator_unavailable" if handle is None else handle.reason
+        if failure is not None:
             catalog.release(
                 ctx.req.dataset_endpoint_id, "FAILED",
-                {"detail": f"the workflow was not started: {reason}"}, ctx.trace_id,
+                {"detail": f"the workflow was not started: {failure}"}, ctx.trace_id,
             )
             ctx.scratch["claimed"] = False
-            ctx.scratch["reason"] = reason
+            ctx.scratch["reason"] = failure
             ctx.scratch["run_id"] = None
         else:
-            ctx.scratch["run_id"] = handle.run_id
+            ctx.scratch["run_id"] = handle.run_id if handle else None
 
 
 class BuildAcquireRespTask(ITask):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -19,6 +20,8 @@ from .common.errors import ServiceError
 from .common.object_factory import SERVICE_FACTORY
 from .config import settings
 from .service.i_catalog_service import IHealthService
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AKG DataCatalog",
@@ -66,6 +69,11 @@ async def trace_id_middleware(
 async def service_error_handler(request: Request, exc: ServiceError) -> JSONResponse:
     """Service errors carry a stable code and map to a status. The message is for
     operators and is returned only for client errors, never for 5xx."""
+    # Withheld from the client, but it must still reach the log -- otherwise the operator
+    # the response tells to "quote the trace id" has nothing to look it up in.
+    if exc.status >= 500:
+        log.error("%s [%s] %s", exc.code, exc.trace_id, exc.message, exc_info=exc)
+
     body = {
         "type": "about:blank",
         "title": exc.code.replace("_", " ").title(),

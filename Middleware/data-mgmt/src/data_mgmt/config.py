@@ -21,6 +21,12 @@ class Settings(BaseSettings):
 
     catalog_url: str = "http://localhost:9001"
 
+    #: Where the RUNNING WORKFLOW should call the catalog back. Not the same value as
+    #: catalog_url: that one is reachable from this process, this one must be reachable
+    #: from wherever the engine executes. Airflow runs in a container, so localhost there
+    #: is the container itself.
+    catalog_callback_url: str = "http://host.docker.internal:9001"
+
     #: The orchestrator runs workflows on this service's behalf. Airflow's URL,
     #: credentials and API version live there, not here.
     orchestrator_url: str = "http://localhost:9005"

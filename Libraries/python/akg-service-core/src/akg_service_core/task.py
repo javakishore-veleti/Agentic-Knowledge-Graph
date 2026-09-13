@@ -14,12 +14,16 @@ everything it needs on the Ctx and writes everything it produces back to the Ctx
 
 from __future__ import annotations
 
+import logging
+
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 
 from .context import BaseCtx, TaskRecord
 from .errors import ServiceError
 
+
+log = logging.getLogger(__name__)
 
 class ITask(ABC):
     """One step of a use case. Stateless and shared; never store per-call data on self."""
@@ -77,9 +81,19 @@ class IWorkflow(ABC):
             except Exception as exc:
                 record.error = type(exc).__name__
                 record.finished_at = datetime.now(UTC)
+                # Log with the traceback BEFORE converting. `raise ... from exc` keeps the
+                # cause on the exception object, but the API layer turns a 5xx ServiceError
+                # into a generic message and returns -- so without this line the original
+                # error reaches neither the client nor the log, and a 500 leaves no trace
+                # of what actually broke.
+                log.exception(
+                    "task %s failed in workflow %s (trace %s): %s",
+                    record.name, self.wf_name(), ctx.trace_id, exc,
+                )
                 raise ServiceError(
                     code="task_failed",
-                    message=f"task {record.name} failed in workflow {self.wf_name()}",
+                    message=(f"task {record.name} failed in workflow {self.wf_name()}: "
+                             f"{type(exc).__name__}: {exc}"),
                     trace_id=ctx.trace_id,
                 ) from exc
 
