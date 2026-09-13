@@ -75,3 +75,7 @@
   margin-top: .4375rem; padding: .4375rem .625rem; border-radius: var(--radius-sm);
   background: var(--amber-100); color: var(--amber-700);
 }
+
+/* Keep the action column tight so the dataset name keeps the width. */
+.col-action { width: 1%; white-space: nowrap; text-align: right; }
+.btn-sm { padding: .3rem .65rem; font-size: .78rem; }

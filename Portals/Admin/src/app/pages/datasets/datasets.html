@@ -47,11 +47,12 @@
             <th>Source version</th>
             <th>Adapter</th>
             <th>Acquired</th>
+            <th class="col-action"></th>
           </tr>
         </thead>
         <tbody>
           @if (loading()) {
-            <tr><td colspan="5" class="empty muted">Loading…</td></tr>
+            <tr><td colspan="6" class="empty muted">Loading…</td></tr>
           } @else {
             @for (versions of grouped(); track versions[0].dataset_id) {
               @let d = versions[0];
@@ -83,9 +84,16 @@
                   }
                 </td>
                 <td class="tiny muted">{{ d.created_at | date: 'short' }}</td>
+                <td class="col-action">
+                  <!-- stopPropagation: the row is itself a link to the dataset page, and
+                       without this a click on Download navigates there instead. -->
+                  <a class="btn btn-secondary btn-sm"
+                     [routerLink]="['/datasets', d.dataset_id, 'download']"
+                     (click)="$event.stopPropagation()">Download</a>
+                </td>
               </tr>
             } @empty {
-              <tr><td colspan="5" class="empty muted">No datasets match this filter.</td></tr>
+              <tr><td colspan="6" class="empty muted">No datasets match this filter.</td></tr>
             }
           }
         </tbody>

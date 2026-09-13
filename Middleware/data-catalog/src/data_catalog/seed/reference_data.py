@@ -305,7 +305,49 @@ def seed_datasets(session: Session, tenant_id: str) -> tuple[int, int]:
             {"eid": _det("dsep", f"{tenant_id}:{code}:{version}:source"),
              "did": dataset_id, "k": kind, "u": uri, "t": tenant_id},
         ))
+        # ...and a landing destination per place it can be downloaded TO. A source on its
+        # own has nowhere to arrive, which is why the Download page had nothing to offer:
+        # role='source' rows are where data comes from, never where it lands.
+        #
+        # One row per (dataset, destination), so local, S3 and Blob are three independent
+        # downloads with their own state and their own workflow run. Only the local one is
+        # is_primary -- a partial unique index allows exactly one primary per role, and it
+        # is the copy this machine actually reads.
+        for dest_code, dest_kind, dest_uri, primary in _landing_targets(code, version):
+            stmts.append((
+                "INSERT INTO catalog.dataset_endpoint "
+                "  (dataset_endpoint_id, dataset_id, role, app_endpoint_id, "
+                "   location_kind, uri, is_primary, state, tenant_id) "
+                # The destination endpoint is looked up by code rather than pasted in:
+                # a landing row without app_endpoint_id fails dse_destination_needs_
+                # endpoint_ck, and that FK is what tells the DAG which credentials to use.
+                "SELECT :eid, :did, 'landing', e.app_endpoint_id, :k, :u, :prim, "
+                "       'declared', :t "
+                "FROM catalog.app_endpoint e "
+                "WHERE e.code = :ecode AND e.tenant_id = :t "
+                "ON CONFLICT (dataset_endpoint_id) DO NOTHING",
+                {"eid": _det("dsep", f"{tenant_id}:{code}:{version}:landing:{dest_code}"),
+                 "did": dataset_id, "k": dest_kind, "u": dest_uri, "prim": primary,
+                 "ecode": dest_code, "t": tenant_id},
+            ))
     return _count_inserted(session, stmts)
+
+
+def _landing_targets(code: str, version: str) -> list[tuple[str, str, str, bool]]:
+    """Where one dataset version can be downloaded to.
+
+    Returns (app_endpoint code, location_kind, uri, is_primary). The local path sits under
+    the same root the local-fs system endpoint declares, so a download lands where the
+    rest of the platform already looks.
+    """
+    leaf = f"{code}/{version}"
+    return [
+        ("local-fs", "local_fs",
+         f"file://~/runtime_data/AKG/Local/FileSystem/datasets/{leaf}", True),
+        ("aws-s3-profile", "s3", f"s3://akg-datasets/{leaf}", False),
+        ("azure-blob-cli", "azure_blob",
+         f"azure://akg-datasets/{leaf}", False),
+    ]
 
 
 # ---------------------------------------------------------------- workflows

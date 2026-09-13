@@ -362,3 +362,30 @@ export interface LoadResultDto {
   reason: string;
   tracker_id?: string;
 }
+
+
+/** Result of asking the Data Management service to download a dataset.
+ *
+ * `started: false` with reason 'already_available' is a SUCCESS: the point of the
+ * endpoint is not to re-download what is already on disk. Render it as information,
+ * never as a failure. */
+export interface AcquireRespDto {
+  dataset_endpoint_id: string;
+  started: boolean;
+  reason: string;
+  exec_id: string | null;
+  dag_run_id: string | null;
+  state: string | null;
+  sync_wf_status: string | null;
+}
+
+export interface AcquisitionStatusDto {
+  dataset_endpoint_id: string;
+  state: string;
+  sync_wf_status: string | null;
+  sync_started_at: string | null;
+  sync_finished_at: string | null;
+  bytes: number;
+  object_count?: number;
+  error?: Record<string, unknown> | null;
+}

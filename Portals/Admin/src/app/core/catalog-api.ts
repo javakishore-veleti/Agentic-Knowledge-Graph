@@ -5,6 +5,7 @@ import {
   AppEndpointDto, ConnectionType, CreateMioReq, InitialDataEntity, DataInstanceDto, DatasetEndpointDto, DataInstanceExecDto, DataInstancesResp,
   DatasetDto, DomainDto, InvokeResp, MioDto, MioLineageResp, MioWorkflowDto, Paged,
   InitialDataStatusDto, LoadResultDto, Provider, UpdateMioReq, WorkflowDto,
+  AcquireRespDto, AcquisitionStatusDto,
 } from './catalog-models';
 
 /** What the portal needs from the DataCatalog service.
@@ -31,11 +32,18 @@ export abstract class CatalogApi {
   abstract createMio(req: CreateMioReq): Observable<{ mio: MioDto }>;
   abstract updateMio(req: UpdateMioReq): Observable<{ mio: MioDto }>;
   abstract deleteMio(mioId: string): Observable<{ deleted: boolean }>;
+  /** Ask Data Management to download a dataset into one destination.
+   *  Returns as soon as the workflow is triggered: the DAG reports completion back to
+   *  the catalog, so the caller polls acquisitionStatus rather than holding a request
+   *  open for the length of a download. */
+  abstract acquire(datasetEndpointId: string, force: boolean): Observable<AcquireRespDto>;
+  abstract acquisitionStatus(datasetEndpointId: string): Observable<AcquisitionStatusDto>;
   /** Whether the real service is reachable. Drives the banner rather than a silent fallback. */
   abstract live(): Observable<boolean>;
 }
 
 export const CATALOG_BASE_URL = new InjectionToken<string>('CATALOG_BASE_URL');
+export const DATA_MGMT_BASE_URL = new InjectionToken<string>('DATA_MGMT_BASE_URL');
 
 @Injectable()
 export class HttpCatalogApi extends CatalogApi {
@@ -81,6 +89,21 @@ export class HttpCatalogApi extends CatalogApi {
   datasetLocations(datasetId: string): Observable<{ dataset_id: string; items: DatasetEndpointDto[] }> {
     return this.http.get<{ dataset_id: string; items: DatasetEndpointDto[] }>(
       `${this.base}/api/v1/datasets/${datasetId}/endpoints`);
+  }
+
+  private readonly dmBase = inject(DATA_MGMT_BASE_URL);
+
+  acquire(datasetEndpointId: string, force: boolean): Observable<AcquireRespDto> {
+    // Deliberately the data-mgmt origin, not the catalog: the catalog owns what a
+    // dataset IS, data-mgmt owns moving it. Pointing this at the catalog would put a
+    // long-running trigger behind the service every page already depends on.
+    return this.http.post<AcquireRespDto>(
+      `${this.dmBase}/api/v1/dataset-endpoints/${datasetEndpointId}/acquire`, { force });
+  }
+
+  acquisitionStatus(datasetEndpointId: string): Observable<AcquisitionStatusDto> {
+    return this.http.get<AcquisitionStatusDto>(
+      `${this.dmBase}/api/v1/dataset-endpoints/${datasetEndpointId}/acquisition`);
   }
 
   initialDataStatus(): Observable<{ items: InitialDataStatusDto[] }> {
@@ -143,6 +166,22 @@ export class HttpCatalogApi extends CatalogApi {
  *  nothing in a component. Used when the middleware stack is not running. */
 @Injectable()
 export class MockCatalogApi extends CatalogApi {
+  acquire(datasetEndpointId: string, _force: boolean): Observable<AcquireRespDto> {
+    return of({
+      dataset_endpoint_id: datasetEndpointId, started: true, reason: 'triggered',
+      exec_id: 'mock-exec', dag_run_id: 'mock-run', state: 'syncing',
+      sync_wf_status: 'RUNNING',
+    });
+  }
+
+  acquisitionStatus(datasetEndpointId: string): Observable<AcquisitionStatusDto> {
+    return of({
+      dataset_endpoint_id: datasetEndpointId, state: 'available',
+      sync_wf_status: 'COMPLETED', sync_started_at: null, sync_finished_at: null,
+      bytes: 0, object_count: 0, error: null,
+    });
+  }
+
   readonly isMock = signal(true);
 
   /** Mutable so create/update/delete are visible in the UI without a backend. The real

@@ -12,4 +12,6 @@ export const environment = {
   production: false,
   useMock: false,
   catalogBaseUrl: 'http://localhost:9001',
+  // Acquisition runs in its own service: it triggers Airflow and outlives a request.
+  dataMgmtBaseUrl: 'http://localhost:9002',
 };

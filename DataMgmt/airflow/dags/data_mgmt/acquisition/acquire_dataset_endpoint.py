@@ -17,6 +17,7 @@ from typing import Any
 from airflow.decorators import dag, task
 from airflow.utils.trigger_rule import TriggerRule
 from akg_common import CatalogCallback, require_conf
+from akg_common.transfer import DEFAULT_MAX_FILES, download
 from pendulum import datetime as pdt
 
 log = logging.getLogger(__name__)
@@ -42,6 +43,8 @@ def acquire_dataset_endpoint():
             "endpoint_id": conf["dataset_endpoint_id"],
             "catalog_url": conf["catalog_callback_url"],
             "trace_id": conf.get("trace_id", ""),
+            # A cap on how much one button press downloads; see transfer.DEFAULT_MAX_FILES.
+            "max_files": conf.get("max_files"),
         }
 
     @task
@@ -58,17 +61,29 @@ def acquire_dataset_endpoint():
         return ep
 
     @task
-    def copy_to_destination(endpoint: dict[str, Any]) -> dict[str, Any]:
+    def copy_to_destination(endpoint: dict[str, Any], cfg: dict[str, Any]) -> dict[str, Any]:
         """The transfer itself.
 
-        A stub: it reports zero bytes, which the catalog deliberately reads as "the run
-        finished but the data did not arrive" rather than marking the endpoint available.
-        Replace per location_kind (s3, azure_blob, gcs, postgres, file_server) with a real
-        transfer returning what it actually wrote.
+        Raises rather than returning zero bytes when it cannot copy: `report` runs on
+        ALL_DONE and turns a missing result into FAILED, so an unimplemented destination
+        leaves the endpoint claimable again instead of marked available with nothing
+        behind it.
         """
-        kind = endpoint.get("location_kind")
-        log.warning("copy_to_destination is a stub for kind=%s; no data moved", kind)
-        return {"bytes": 0, "object_count": 0, "stub": True}
+        source_uri = endpoint.get("source_uri")
+        if not source_uri:
+            raise ValueError(
+                "the catalog returned no source location for this dataset; "
+                "there is nothing to download from"
+            )
+        result = download(
+            source_uri,
+            endpoint["uri"],
+            endpoint.get("location_kind", ""),
+            max_files=int(cfg.get("max_files") or DEFAULT_MAX_FILES),
+        )
+        log.info("wrote %d file(s), %d bytes: %s",
+                 result.object_count, result.bytes, ", ".join(result.files))
+        return {"bytes": result.bytes, "object_count": result.object_count}
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
     def report(cfg: dict[str, Any], result: dict[str, Any] | None, **context) -> dict[str, Any]:
@@ -87,7 +102,7 @@ def acquire_dataset_endpoint():
         )
 
     cfg = read_conf()
-    report(cfg, copy_to_destination(fetch_endpoint(cfg)))
+    report(cfg, copy_to_destination(fetch_endpoint(cfg), cfg))
 
 
 acquire_dataset_endpoint()

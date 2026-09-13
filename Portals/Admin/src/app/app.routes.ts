@@ -13,6 +13,12 @@ export const routes: Routes = [
     title: 'DataSets · Knowledge Admin',
   },
   {
+    path: 'datasets/:id/download',
+    title: 'Download Dataset',
+    loadComponent: () =>
+      import('./pages/dataset-download/dataset-download').then((m) => m.DatasetDownload),
+  },
+  {
     path: 'datasets/:id',
     loadComponent: () =>
       import('./pages/dataset-detail/dataset-detail').then((m) => m.DatasetDetail),

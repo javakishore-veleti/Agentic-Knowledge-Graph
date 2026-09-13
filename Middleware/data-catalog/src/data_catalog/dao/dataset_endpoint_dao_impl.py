@@ -123,10 +123,27 @@ class AcquisitionDaoImpl(_BaseDao, IAcquisitionDao):
         return out
 
     def get(self, tenant_id: str, endpoint_id: uuid.UUID) -> dict[str, Any] | None:
+        """One endpoint, plus the source its dataset is downloaded FROM.
+
+        source_uri is joined in rather than left to the caller: the acquisition DAG is
+        told which destination to fill and would otherwise need a second round trip to
+        discover where the data comes from -- and two lookups are two chances for the
+        pair to disagree about which dataset is being acquired.
+
+        The primary source wins when a dataset declares more than one; is_primary DESC
+        makes that explicit instead of relying on insertion order.
+        """
         with self._session_factory() as s:
             row = s.execute(
-                text("SELECT * FROM catalog.dataset_endpoint "
-                     "WHERE dataset_endpoint_id = :id AND tenant_id = :t"),
+                text("SELECT de.*, "
+                     "       (SELECT src.uri FROM catalog.dataset_endpoint src "
+                     "         WHERE src.dataset_id = de.dataset_id "
+                     "           AND src.tenant_id = de.tenant_id "
+                     "           AND src.role = 'source' "
+                     "         ORDER BY src.is_primary DESC, src.created_at "
+                     "         LIMIT 1) AS source_uri "
+                     "  FROM catalog.dataset_endpoint de "
+                     " WHERE de.dataset_endpoint_id = :id AND de.tenant_id = :t"),
                 {"id": endpoint_id, "t": tenant_id},
             ).mappings().first()
             return self._jsonable(row) if row else None

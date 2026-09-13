@@ -1,0 +1,94 @@
+<section class="page">
+  <nav class="crumbs">
+    <a routerLink="/datasets">DataSets</a>
+    <span>/</span>
+    <a [routerLink]="['/datasets', dataset()?.dataset_id]">{{ dataset()?.name || 'Dataset' }}</a>
+    <span>/</span>
+    <span class="here">Download</span>
+  </nav>
+
+  <header class="page-head">
+    <h1>Download Dataset</h1>
+    <p class="lede">
+      Choose where this dataset version should land. Each destination is a separate copy
+      with its own workflow run, so downloading to one says nothing about the others.
+      The button asks the Data Management service, which triggers Airflow; the workflow
+      reports back here when the data has arrived.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <p class="muted tiny">Loading…</p>
+  } @else if (error(); as e) {
+    <div class="banner bad">
+      <strong>Nothing to show.</strong> {{ e }}
+      <button class="btn btn-secondary" (click)="load()">Retry</button>
+    </div>
+  } @else if (dataset(); as d) {
+
+    <div class="card source-card">
+      <h2>Source</h2>
+      <p class="muted tiny">Where the data is downloaded from. Read-only: a source is a
+        fact about the dataset, not a place we write.</p>
+      @if (source(); as s) {
+        <dl class="facts">
+          <div><dt>Dataset</dt><dd>{{ d.name }} <code>{{ d.code }}</code></dd></div>
+          <div><dt>Source version</dt><dd><code>{{ d.source_version }}</code></dd></div>
+          <div><dt>Location kind</dt><dd>{{ s.location_kind }}</dd></div>
+          <div class="wide"><dt>Source URI</dt><dd><code>{{ s.uri }}</code></dd></div>
+        </dl>
+      } @else {
+        <p class="muted">This dataset has no source location recorded, so there is
+          nothing to download from.</p>
+      }
+    </div>
+
+    <h2 class="section-title">Destinations</h2>
+    @if (!destinations().length) {
+      <div class="banner warn">
+        No destination is configured for this dataset. A download needs somewhere to land:
+        add a landing endpoint (local filesystem, S3, Blob storage) and it will appear here.
+      </div>
+    }
+
+    <div class="dest-grid">
+      @for (dest of destinations(); track dest.dataset_endpoint_id) {
+        <article class="card dest">
+          <div class="dest-head">
+            <div>
+              <h3>{{ dest.location_kind }}</h3>
+              <code class="uri">{{ dest.uri }}</code>
+            </div>
+            <span [class]="stateChip(dest.state)">{{ dest.state }}</span>
+          </div>
+
+          <dl class="facts small">
+            <div><dt>Primary</dt><dd>{{ dest.is_primary ? 'yes' : 'no' }}</dd></div>
+            <div><dt>Bytes</dt><dd>{{ dest.bytes ? dest.bytes.toLocaleString() : '—' }}</dd></div>
+            <div><dt>Objects</dt><dd>{{ dest.object_count || '—' }}</dd></div>
+            <div><dt>Last synced</dt>
+              <dd>{{ dest.last_synced_at ? (dest.last_synced_at | date: 'short') : 'never' }}</dd></div>
+          </dl>
+
+          @if (notes()[dest.dataset_endpoint_id]; as n) {
+            <p class="note" [class]="'note ' + n.kind">{{ n.text }}</p>
+          }
+
+          <div class="dest-actions">
+            @if (isRunning(dest)) {
+              <span class="muted tiny">Workflow running — this updates itself.</span>
+            } @else if (dest.state === 'available') {
+              <span class="muted tiny">Already downloaded. It will not download again.</span>
+            } @else {
+              <button class="btn btn-primary"
+                      [disabled]="!canDownload(dest)"
+                      (click)="download(dest)">
+                Download to {{ dest.location_kind }}
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>
