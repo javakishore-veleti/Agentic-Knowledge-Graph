@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CatalogApi } from '../../core/catalog-api';
 import { errorText } from '../../core/http-error';
 import {
-  DatasetDto, DatasetEndpointDto, locationStateChip,
+  AppEndpointDto, DatasetDto, DatasetEndpointDto, locationStateChip,
 } from '../../core/catalog-models';
 
 /** Download a dataset from its source into one destination.
@@ -40,6 +40,108 @@ export class DatasetDownload {
   readonly busy = signal<Record<string, boolean>>({});
 
   private readonly datasetId = this.route.snapshot.paramMap.get('id') ?? '';
+
+  // --- adding a destination --------------------------------------------------------
+  /** Endpoints registered in the Endpoints screen. A destination is CHOSEN from these,
+   *  never typed in: the endpoint is what carries the host, the credentials and the
+   *  filesystem root, and a destination that names none of those cannot be written to. */
+  readonly endpoints = signal<AppEndpointDto[]>([]);
+  readonly adding = signal(false);
+  readonly addBusy = signal(false);
+  readonly addError = signal<string | null>(null);
+  readonly chosenEndpointId = signal<string>('');
+  readonly newPath = signal<string>('');
+
+  /** Endpoints this dataset does not already land in. Offering one twice invites a
+   *  unique-constraint error in place of an explanation. */
+  readonly availableEndpoints = computed(() => {
+    const used = new Set(this.destinations().map((d) => d.app_endpoint_id));
+    return this.endpoints().filter((e) => !used.has(e.app_endpoint_id));
+  });
+
+  readonly chosenEndpoint = computed(() =>
+    this.endpoints().find((e) => e.app_endpoint_id === this.chosenEndpointId()) ?? null);
+
+  /** What the path will mean once saved, so the shape is not a surprise after the fact. */
+  readonly previewUri = computed(() => {
+    const ep = this.chosenEndpoint();
+    const path = this.newPath().trim().replace(/^\/+/, '');
+    if (!ep || !path) return '';
+    return `${this.uriSchemeFor(ep)}${path}`;
+  });
+
+  /** How a path is addressed for this endpoint's kind.
+   *
+   *  endpoint:// means "relative to the root this endpoint declares", which is the only
+   *  correct form for a filesystem: the same row has to resolve to a laptop directory
+   *  and a container mount, and an absolute path resolves to whichever machine happens
+   *  to read it. */
+  private uriSchemeFor(ep: AppEndpointDto): string {
+    switch (ep.provider_service) {
+      case 's3': return 's3://';
+      case 'blob_storage': return 'azure://';
+      case 'cloud_storage': return 'gs://';
+      case 'filesystem': return 'endpoint://';
+      default: return 'endpoint://';
+    }
+  }
+
+  private locationKindFor(ep: AppEndpointDto): string {
+    switch (ep.provider_service) {
+      case 's3': return 's3';
+      case 'blob_storage': return 'azure_blob';
+      case 'cloud_storage': return 'gcs';
+      case 'filesystem': return 'local_fs';
+      default: return ep.provider_service || 'local_fs';
+    }
+  }
+
+  startAdd(): void {
+    this.adding.set(true);
+    this.addError.set(null);
+    this.newPath.set(`datasets/${this.dataset()?.code ?? ''}/${this.dataset()?.source_version ?? ''}`);
+    this.api.endpoints().subscribe({
+      next: (page) => this.endpoints.set(page.items),
+      error: () => this.addError.set('Could not load the registered endpoints.'),
+    });
+  }
+
+  cancelAdd(): void {
+    this.adding.set(false);
+    this.chosenEndpointId.set('');
+    this.addError.set(null);
+  }
+
+  saveDestination(): void {
+    const ep = this.chosenEndpoint();
+    const path = this.newPath().trim().replace(/^\/+/, '');
+    if (!ep) { this.addError.set('Choose an endpoint first.'); return; }
+    if (!path) { this.addError.set('Give a path within that endpoint.'); return; }
+
+    this.addBusy.set(true);
+    this.addError.set(null);
+    this.api.addDatasetEndpoint(this.datasetId, {
+      role: 'landing',
+      app_endpoint_id: ep.app_endpoint_id,
+      location_kind: this.locationKindFor(ep),
+      uri: `${this.uriSchemeFor(ep)}${path}`,
+      // Never claims primary: exactly one landing per dataset may be primary, and
+      // silently stealing it from the copy the platform already reads would change
+      // which data everything downstream sees.
+      is_primary: false,
+    }).subscribe({
+      next: () => {
+        this.addBusy.set(false);
+        this.adding.set(false);
+        this.chosenEndpointId.set('');
+        this.loadEndpoints();
+      },
+      error: (e) => {
+        this.addBusy.set(false);
+        this.addError.set(errorText(e, 'The destination could not be added.'));
+      },
+    });
+  }
   private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {

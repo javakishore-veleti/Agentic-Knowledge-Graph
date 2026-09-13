@@ -389,3 +389,18 @@ export interface AcquisitionStatusDto {
   object_count?: number;
   error?: Record<string, unknown> | null;
 }
+
+
+/** Attach a destination to a dataset by pointing at an endpoint that already exists.
+ *
+ * app_endpoint_id is required for anything but a source: a destination with no endpoint
+ * names no host, no credentials and no owner, and the database rejects it. That is the
+ * point of defining endpoints once in the Endpoints screen and selecting them here. */
+export interface AddDatasetEndpointReq {
+  role: 'landing' | 'curated' | 'export';
+  app_endpoint_id: string;
+  location_kind: string;
+  uri: string;
+  is_primary?: boolean;
+  format?: string | null;
+}

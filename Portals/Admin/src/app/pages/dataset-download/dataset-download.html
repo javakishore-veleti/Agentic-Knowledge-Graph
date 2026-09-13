@@ -43,7 +43,74 @@
       }
     </div>
 
-    <h2 class="section-title">Destinations</h2>
+    <div class="section-head">
+      <h2 class="section-title">Destinations</h2>
+      @if (!adding()) {
+        <button class="btn btn-primary" (click)="startAdd()">Add destination</button>
+      }
+    </div>
+
+    @if (adding()) {
+      <div class="card add-dest">
+        <h3>Add a destination</h3>
+        <p class="muted tiny">
+          Destinations are chosen from the endpoints registered in
+          <a routerLink="/endpoints">Endpoints</a>. The endpoint carries the provider,
+          the credentials and the root path; here you only say where inside it this
+          dataset goes.
+        </p>
+
+        @if (!availableEndpoints().length) {
+          <div class="banner warn">
+            Every registered endpoint is already a destination for this dataset. Define a
+            new one in <a routerLink="/endpoints">Endpoints</a> to add another.
+          </div>
+        } @else {
+          <div class="add-grid">
+            <label>
+              <span class="field-label">Endpoint</span>
+              <select [value]="chosenEndpointId()"
+                      (change)="chosenEndpointId.set($any($event.target).value)">
+                <option value="">Choose an endpoint…</option>
+                @for (e of availableEndpoints(); track e.app_endpoint_id) {
+                  <option [value]="e.app_endpoint_id">
+                    {{ e.name }} — {{ e.provider }}/{{ e.provider_service }} ({{ e.env }})
+                  </option>
+                }
+              </select>
+            </label>
+
+            <label>
+              <span class="field-label">Path within the endpoint</span>
+              <input type="text" [value]="newPath()"
+                     (input)="newPath.set($any($event.target).value)"
+                     placeholder="datasets/my-dataset/v1" />
+            </label>
+          </div>
+
+          @if (previewUri()) {
+            <p class="muted tiny">Will be stored as <code>{{ previewUri() }}</code></p>
+          }
+          @if (chosenEndpoint(); as e) {
+            <p class="muted tiny">
+              Authenticates by <strong>{{ e.connection_type }}</strong>. The credentials
+              come from the environment the workflow runs in, not from this screen.
+            </p>
+          }
+        }
+
+        @if (addError(); as ae) { <p class="note bad">{{ ae }}</p> }
+
+        <div class="add-actions">
+          <button class="btn btn-secondary" (click)="cancelAdd()">Cancel</button>
+          <button class="btn btn-primary"
+                  [disabled]="addBusy() || !availableEndpoints().length"
+                  (click)="saveDestination()">
+            {{ addBusy() ? 'Adding…' : 'Add destination' }}
+          </button>
+        </div>
+      </div>
+    }
     @if (!destinations().length) {
       <div class="banner warn">
         No destination is configured for this dataset. A download needs somewhere to land:

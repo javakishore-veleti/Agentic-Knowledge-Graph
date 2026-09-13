@@ -39,22 +39,25 @@ services:
       # Local only. In Azure this comes from Key Vault via the container environment.
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD:-akg-local-only}
       AKG_ENV: local
-      # The name the local-fs endpoint declares. Inside the container the root is the
-      # mount point; on the host it is the directory that was mounted.
-      AKG_LOCAL_DATA_ROOT: /opt/akg/filesystem
+      # The name the local-fs endpoint declares. The same path the host uses, because
+      # the mount below puts the host's runtime_data where the container's ~ resolves.
+      AKG_LOCAL_DATA_ROOT: /home/airflow/runtime_data/AKG/Local/FileSystem
     ports: ["${AIRFLOW_PORT:-8080}:8080"]
     volumes:
       - ../../../DataMgmt/airflow/dags:/opt/airflow/dags:ro
       - ../../../DataMgmt/airflow/plugins:/opt/airflow/plugins:ro
       - akg-airflow-logs:/opt/airflow/logs
-      # The local filesystem endpoint, mounted from the host. Without this a download
-      # lands inside the container: real bytes, in a directory nobody can see, deleted on
-      # the next recreate. The catalog stores a path relative to the endpoint root, and
-      # AKG_LOCAL_DATA_ROOT below tells this container where that root is.
-      # Distinct name on purpose: this is the HOST directory, while AKG_LOCAL_DATA_ROOT
-      # above is the path INSIDE the container. Reusing one name would mean anyone who
-      # set it to the container path in .env would silently break the mount.
-      - ${AKG_LOCAL_FS_HOST_ROOT:-${HOME}/runtime_data/AKG/Local/FileSystem}:/opt/akg/filesystem
+      # The host's runtime_data, mounted at the SAME path the container's own home
+      # resolves to. That is the point: a filesystem endpoint declares a root like
+      # ~/runtime_data/AKG/Local/Scratch, and "~" expands to the home of whoever resolves
+      # it -- the workflow runner. Mounting here makes every such endpoint resolve to the
+      # real directory on this machine, including ones defined later in the Endpoints
+      # screen, instead of each new root needing its own mount.
+      #
+      # Without it a download succeeds, reports real bytes and marks the endpoint
+      # available, while the files sit inside a container nobody can see and a recreate
+      # deletes.
+      - ${AKG_LOCAL_FS_HOST_ROOT:-${HOME}/runtime_data}:/home/airflow/runtime_data
     networks: [akg]
 
 volumes:

@@ -5,7 +5,7 @@ import {
   AppEndpointDto, ConnectionType, CreateMioReq, InitialDataEntity, DataInstanceDto, DatasetEndpointDto, DataInstanceExecDto, DataInstancesResp,
   DatasetDto, DomainDto, InvokeResp, MioDto, MioLineageResp, MioWorkflowDto, Paged,
   InitialDataStatusDto, LoadResultDto, Provider, UpdateMioReq, WorkflowDto,
-  AcquireRespDto, AcquisitionStatusDto,
+  AcquireRespDto, AcquisitionStatusDto, AddDatasetEndpointReq,
 } from './catalog-models';
 
 /** What the portal needs from the DataCatalog service.
@@ -38,6 +38,8 @@ export abstract class CatalogApi {
    *  open for the length of a download. */
   abstract acquire(datasetEndpointId: string, force: boolean): Observable<AcquireRespDto>;
   abstract acquisitionStatus(datasetEndpointId: string): Observable<AcquisitionStatusDto>;
+  /** Attach a destination to a dataset, choosing from the registered endpoints. */
+  abstract addDatasetEndpoint(datasetId: string, req: AddDatasetEndpointReq): Observable<{ dataset_endpoint_id: string }>;
   /** Whether the real service is reachable. Drives the banner rather than a silent fallback. */
   abstract live(): Observable<boolean>;
 }
@@ -106,6 +108,13 @@ export class HttpCatalogApi extends CatalogApi {
       `${this.dmBase}/api/v1/dataset-endpoints/${datasetEndpointId}/acquisition`);
   }
 
+  addDatasetEndpoint(datasetId: string, req: AddDatasetEndpointReq): Observable<{ dataset_endpoint_id: string }> {
+    // The catalog owns what a dataset is and where its copies live; data-mgmt only moves
+    // bytes. Attaching a destination is a catalog fact, so it goes to :9001.
+    return this.http.post<{ dataset_endpoint_id: string }>(
+      `${this.base}/api/v1/datasets/${datasetId}/endpoints`, req);
+  }
+
   initialDataStatus(): Observable<{ items: InitialDataStatusDto[] }> {
     return this.http.get<{ items: InitialDataStatusDto[] }>(
       `${this.base}/api/v1/admin/initial-data`);
@@ -172,6 +181,10 @@ export class MockCatalogApi extends CatalogApi {
       exec_id: 'mock-exec', dag_run_id: 'mock-run', state: 'syncing',
       sync_wf_status: 'RUNNING',
     });
+  }
+
+  addDatasetEndpoint(_datasetId: string, _req: AddDatasetEndpointReq): Observable<{ dataset_endpoint_id: string }> {
+    return of({ dataset_endpoint_id: 'mock-endpoint' });
   }
 
   acquisitionStatus(datasetEndpointId: string): Observable<AcquisitionStatusDto> {

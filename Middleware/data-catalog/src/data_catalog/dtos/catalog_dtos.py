@@ -518,6 +518,23 @@ class ListDatasetEndpointsCtx(BaseCtx[ListDatasetEndpointsReq, ListDatasetEndpoi
     pass
 
 
+class AddDatasetEndpointBody(ReqDto):
+    """What a CLIENT may send.
+
+    Without dataset_id: it is in the path. A body model that demands the identifier the
+    URL already carries rejects the obvious request with a 422 naming a field the caller
+    had no business repeating.
+    """
+
+    role: str = "landing"
+    app_endpoint_id: uuid.UUID | None = None
+    location_kind: str
+    uri: str = Field(min_length=3)
+    options: dict[str, Any] = {}
+    format: str | None = None
+    is_primary: bool = False
+
+
 class AddDatasetEndpointReq(ReqDto):
     dataset_id: uuid.UUID
     role: str = "landing"

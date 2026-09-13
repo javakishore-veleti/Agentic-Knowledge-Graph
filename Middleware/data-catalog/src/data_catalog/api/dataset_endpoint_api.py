@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict
 
 from ..common.object_factory import SERVICE_FACTORY
 from ..config import settings
-from ..dtos.catalog_dtos import AddDatasetEndpointReq
+from ..dtos.catalog_dtos import AddDatasetEndpointBody, AddDatasetEndpointReq
 from ..service.i_dataset_location_service import IDatasetLocationService
 
 router = APIRouter(prefix=settings.api_prefix, tags=["dataset-locations"])
@@ -66,9 +66,11 @@ def list_dataset_endpoints(
 
 @router.post("/datasets/{dataset_id}/endpoints", status_code=201)
 def add_dataset_endpoint(
-    request: Request, dataset_id: uuid.UUID, body: AddDatasetEndpointReq
+    request: Request, dataset_id: uuid.UUID, body: AddDatasetEndpointBody
 ) -> dict[str, Any]:
-    req = body.model_copy(update={"dataset_id": dataset_id})
+    # The path owns the identity; the body carries only the destination's own facts, so a
+    # caller cannot address one dataset and name another.
+    req = AddDatasetEndpointReq(dataset_id=dataset_id, **body.model_dump())
     new_id = _svc().add_location(settings.tenant_id, req, _tid(request))
     return {"dataset_endpoint_id": str(new_id)}
 
