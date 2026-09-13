@@ -9,7 +9,8 @@ from fastapi import APIRouter, Request
 
 from ..config import settings
 from ..dtos.acquisition_dtos import (
-    AcquireDatasetCtx, AcquireDatasetReq, AcquireDatasetResp, AcquisitionStatusCtx,
+    AcquireDatasetBody, AcquireDatasetCtx, AcquireDatasetReq, AcquireDatasetResp,
+    AcquisitionStatusCtx,
     AcquisitionStatusReq, AcquisitionStatusResp,
 )
 from ..service.i_acquisition_service import IAcquisitionService
@@ -24,7 +25,8 @@ def _tid(request: Request) -> str:
 @router.post("/dataset-endpoints/{dataset_endpoint_id}/acquire",
              response_model=AcquireDatasetResp)
 def acquire(
-    request: Request, dataset_endpoint_id: uuid.UUID, body: AcquireDatasetReq | None = None
+    request: Request, dataset_endpoint_id: uuid.UUID,
+    body: AcquireDatasetBody | None = None,
 ) -> AcquireDatasetResp:
     """Acquire a dataset from its source into this destination.
 
@@ -33,8 +35,12 @@ def acquire(
     error, so it stays a 200 -- a caller that retries should not have to parse a failure
     to learn that its data is already there.
     """
-    req = (body or AcquireDatasetReq(dataset_endpoint_id=dataset_endpoint_id)).model_copy(
-        update={"dataset_endpoint_id": dataset_endpoint_id}
+    # The path owns the identity; the body only carries options. Building the Req here
+    # rather than accepting one keeps a caller from naming a different endpoint in the
+    # body than the one it addressed.
+    opts = body or AcquireDatasetBody()
+    req = AcquireDatasetReq(
+        dataset_endpoint_id=dataset_endpoint_id, force=opts.force, params=opts.params,
     )
     ctx = AcquireDatasetCtx(req=req, trace_id=_tid(request),
                             tenant_id=settings.tenant_id, env=settings.env)

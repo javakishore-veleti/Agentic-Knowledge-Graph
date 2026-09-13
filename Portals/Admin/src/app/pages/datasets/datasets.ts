@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CatalogApi } from '../../core/catalog-api';
 import { DatasetDto, DomainDto } from '../../core/catalog-models';
+import { errorText } from '../../core/http-error';
 import { Pager } from '../../shared/pager';
 
 /** Source data at a version.
@@ -73,7 +74,7 @@ export class Datasets {
         this.loading.set(false);
       },
       error: (e) => {
-        this.error.set(e?.error?.detail ?? 'Could not reach the DataCatalog service.');
+        this.error.set(errorText(e, 'Could not reach the DataCatalog service.'));
         this.loading.set(false);
       },
     });

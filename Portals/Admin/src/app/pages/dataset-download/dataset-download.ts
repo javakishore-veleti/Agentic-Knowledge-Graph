@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CatalogApi } from '../../core/catalog-api';
+import { errorText } from '../../core/http-error';
 import {
   DatasetDto, DatasetEndpointDto, locationStateChip,
 } from '../../core/catalog-models';
@@ -117,10 +118,9 @@ export class DatasetDownload {
       },
       error: (e) => {
         this.busy.update((b) => ({ ...b, [id]: false }));
-        this.note(id, 'bad',
-          e?.error?.detail ??
+        this.note(id, 'bad', errorText(e,
           'Could not reach the Data Management service on :9002. ' +
-          'Check it with: npm run local:middleware:status-all');
+          'Check it with: npm run local:middleware:status-all'));
       },
     });
   }

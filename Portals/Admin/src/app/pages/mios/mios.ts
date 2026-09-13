@@ -6,6 +6,7 @@ import {
   MioWorkflowDto, TECH_STACKS, WorkflowDto, WorkflowParamDto, humanBytes,
   instanceKindChip, mioStateChip, techLabel,
 } from '../../core/catalog-models';
+import { errorText } from '../../core/http-error';
 import { Pager } from '../../shared/pager';
 
 type Tab = 'overview' | 'instances' | 'workflows' | 'lineage';
@@ -92,7 +93,7 @@ export class Mios {
         this.loading.set(false);
       },
       error: (e) => {
-        this.error.set(e?.error?.detail ?? 'Could not reach the DataCatalog service.');
+        this.error.set(errorText(e, 'Could not reach the DataCatalog service.'));
         this.loading.set(false);
       },
     });
@@ -148,7 +149,7 @@ export class Mios {
     if (!id || !m) return;
     this.api.attachWorkflow(m.mio_id, id, 'build').subscribe({
       next: () => { this.refreshWorkflows(m.mio_id); this.load(); },
-      error: (err) => this.notice.set(err?.error?.detail ?? 'Could not attach the workflow.'),
+      error: (err) => this.notice.set(errorText(err, 'Could not attach the workflow.')),
     });
     (e.target as HTMLSelectElement).value = '';
   }
@@ -158,7 +159,7 @@ export class Mios {
     if (!m || !w.workflow_id) return;
     this.api.detachWorkflow(m.mio_id, w.workflow_id).subscribe({
       next: () => { this.refreshWorkflows(m.mio_id); this.load(); },
-      error: (err) => this.notice.set(err?.error?.detail ?? 'Could not detach the workflow.'),
+      error: (err) => this.notice.set(errorText(err, 'Could not detach the workflow.')),
     });
   }
 
@@ -201,7 +202,7 @@ export class Mios {
       next: (r) => this.invokeResult.set(
         `Queued · exec ${r.data_instance_exec_id} · status ${r.status}` +
         (r.wf_ref_id ? ` · engine ref ${r.wf_ref_id}` : ' · no engine reference yet')),
-      error: (err) => this.notice.set(err?.error?.detail ?? 'The workflow could not be started.'),
+      error: (err) => this.notice.set(errorText(err, 'The workflow could not be started.')),
     });
   }
 
@@ -238,7 +239,7 @@ export class Mios {
         description: f['description'] ?? '', tech_stack: f['tech_stack'],
       }).subscribe({
         next: () => { this.cancelForm(); this.reset(); },
-        error: (err) => this.notice.set(err?.error?.detail ?? 'Could not create the MIO.'),
+        error: (err) => this.notice.set(errorText(err, 'Could not create the MIO.')),
       });
       return;
     }
@@ -252,14 +253,14 @@ export class Mios {
       next: () => { this.cancelForm(); this.load(); this.closeDrawer(); },
       // The service refuses promotion without a pin or with failing validations, and
       // says which. Surfacing its message beats inventing one here.
-      error: (err) => this.notice.set(err?.error?.detail ?? 'Could not update the MIO.'),
+      error: (err) => this.notice.set(errorText(err, 'Could not update the MIO.')),
     });
   }
 
   remove(m: MioDto): void {
     this.api.deleteMio(m.mio_id).subscribe({
       next: () => { this.closeDrawer(); this.reset(); },
-      error: (err) => this.notice.set(err?.error?.detail ?? 'Could not delete the MIO.'),
+      error: (err) => this.notice.set(errorText(err, 'Could not delete the MIO.')),
     });
   }
 

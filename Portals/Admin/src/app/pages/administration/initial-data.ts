@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { CatalogApi } from '../../core/catalog-api';
+import { errorText } from '../../core/http-error';
 import { InitialDataStatusDto } from '../../core/catalog-models';
 import { Accordion } from '../../shared/accordion';
 
@@ -91,10 +92,9 @@ export class InitialData {
       error: (e) => {
         this.rows.set([]);
         this.loading.set(false);
-        this.error.set(
-          e?.error?.detail ??
-          `Could not reach the DataCatalog service. Check it is running: ` +
-          `npm run local:middleware:status-all`);
+        this.error.set(errorText(e,
+          'Could not reach the DataCatalog service. Check it is running: ' +
+          'npm run local:middleware:status-all'));
       },
     });
   }

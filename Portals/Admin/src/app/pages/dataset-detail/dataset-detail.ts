@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CatalogApi } from '../../core/catalog-api';
+import { errorText } from '../../core/http-error';
 import {
   DatasetDto, DatasetEndpointDto, humanBytes, locationStateChip, roleLabel,
 } from '../../core/catalog-models';
@@ -96,10 +97,9 @@ export class DatasetDetail {
           this.note(id, 'warn', `Not started: ${r.reason}.`);
         }
       },
-      error: (e) => this.note(id, 'bad',
-        e?.error?.detail ??
+      error: (e) => this.note(id, 'bad', errorText(e,
         'Could not reach the Data Management service on :9002. ' +
-        'Check it with: npm run local:middleware:status-all'),
+        'Check it with: npm run local:middleware:status-all')),
     });
   }
 

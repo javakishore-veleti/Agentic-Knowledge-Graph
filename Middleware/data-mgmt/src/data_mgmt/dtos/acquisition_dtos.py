@@ -18,6 +18,18 @@ class RespDto(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class AcquireDatasetBody(ReqDto):
+    """What a CLIENT may send.
+
+    Deliberately without dataset_endpoint_id: that is in the path, and `extra="forbid"`
+    meant a caller posting only {"force": false} -- the obvious thing to send -- got a
+    422 naming a field it had no business repeating.
+    """
+
+    force: bool = False
+    params: dict[str, Any] = {}
+
+
 class AcquireDatasetReq(ReqDto):
     dataset_endpoint_id: uuid.UUID
     #: Re-acquire data that is already available. Without this an available endpoint is

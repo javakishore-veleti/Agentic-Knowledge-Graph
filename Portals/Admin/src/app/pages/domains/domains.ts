@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { CatalogApi } from '../../core/catalog-api';
 import { DomainDto } from '../../core/catalog-models';
+import { errorText } from '../../core/http-error';
 import { Pager } from '../../shared/pager';
 
 @Component({
@@ -39,7 +40,7 @@ export class Domains {
         this.loading.set(false);
       },
       error: (e) => {
-        this.error.set(e?.error?.detail ?? 'Could not reach the DataCatalog service.');
+        this.error.set(errorText(e, 'Could not reach the DataCatalog service.'));
         this.loading.set(false);
       },
     });
