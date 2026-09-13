@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 
 from akg_service_core import SERVICE_FACTORY, ServiceError
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import acquisition_router
@@ -25,6 +26,19 @@ app = FastAPI(
 )
 
 register_all()
+
+# Named origins, never "*": this API starts workflows, so any site a developer happens to
+# visit must not be able to call it from their browser.
+_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+if _origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+        expose_headers=["x-trace-id"],
+    )
 
 
 @app.middleware("http")

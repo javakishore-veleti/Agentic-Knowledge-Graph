@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     tenant_id: str = "reference"
     api_prefix: str = "/api/v1"
 
+    #: Origins allowed to call this API from a browser. The portal calls this service
+    #: directly -- acquisition does not route through the catalog -- so without this the
+    #: Acquire button fails its preflight and the browser reports it as unreachable,
+    #: which is indistinguishable from the service being down.
+    #: Never "*": this API triggers workflows.
+    cors_origins: str = "http://localhost:9003,http://localhost:9004"
+
     catalog_url: str = "http://localhost:9001"
 
     # Airflow's stable REST API.

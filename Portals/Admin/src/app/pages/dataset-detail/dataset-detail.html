@@ -99,15 +99,15 @@
               } @else {
                 <button class="btn btn-primary" (click)="acquire(l)">Acquire</button>
               }
-              @if (notes()[l.dataset_endpoint_id]; as n) {
-                <p [class]="'row-note ' + n.kind">{{ n.text }}</p>
-              }
             } @else if (l.state === 'syncing') {
               <span class="muted tiny">acquisition running…</span>
             } @else {
               <span class="muted tiny">data present</span>
             }
           </div>
+          @if (notes()[l.dataset_endpoint_id]; as n) {
+            <p [class]="'row-note ' + n.kind">{{ n.text }}</p>
+          }
           @if (l.state === 'failed') {
             <div class="warn tiny">
               Last acquisition failed. Retrying needs no force, because failed is not
