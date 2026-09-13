@@ -147,6 +147,10 @@ class AcquisitionDaoImpl(_BaseDao, IAcquisitionDao):
                      # on every machine, and a DAG executing in a container resolves the
                      # same endpoint to a different real path than this process would.
                      "       ae.connection_details AS dest_connection_details, "
+                     # How to authenticate to it. The runner branches on this, so it
+                     # travels with the details rather than being inferred from them.
+                     "       ae.connection_type AS dest_connection_type, "
+                     "       ae.provider AS dest_provider, "
                      "       ae.code AS dest_endpoint_code "
                      "  FROM catalog.dataset_endpoint de "
                      "  LEFT JOIN catalog.app_endpoint ae "

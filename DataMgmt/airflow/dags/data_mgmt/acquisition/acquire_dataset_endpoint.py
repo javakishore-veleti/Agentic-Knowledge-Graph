@@ -28,6 +28,27 @@ log = logging.getLogger(__name__)
 DAG_ID = "data_mgmt.acquisition.acquire_dataset_endpoint"
 
 
+#: XCom key carrying why a transfer failed, from the task that failed to the task that
+#: reports. Deliberately not the return value: a task that raises returns nothing.
+_FAILURE_KEY = "akg_failure"
+
+
+def _record_failure(context: dict[str, Any], exc: Exception) -> None:
+    ti = context.get("ti") or context.get("task_instance")
+    if ti is None:  # pragma: no cover - only when called outside a task context
+        return
+    ti.xcom_push(key=_FAILURE_KEY,
+                 value={"detail": str(exc), "type": type(exc).__name__})
+
+
+def _read_failure(context: dict[str, Any]) -> dict[str, Any] | None:
+    ti = context.get("ti") or context.get("task_instance")
+    if ti is None:  # pragma: no cover
+        return None
+    return ti.xcom_pull(task_ids="copy_to_destination", key=_FAILURE_KEY)
+
+
+
 @dag(
     dag_id=DAG_ID,
     description="Copy a dataset from its source to a destination endpoint",
@@ -64,7 +85,8 @@ def acquire_dataset_endpoint():
         return ep
 
     @task
-    def copy_to_destination(endpoint: dict[str, Any], cfg: dict[str, Any]) -> dict[str, Any]:
+    def copy_to_destination(endpoint: dict[str, Any], cfg: dict[str, Any],
+                            **context) -> dict[str, Any]:
         """The transfer itself.
 
         Raises rather than returning zero bytes when it cannot copy: `report` runs on
@@ -74,6 +96,8 @@ def acquire_dataset_endpoint():
         """
         source_uri = endpoint.get("source_uri")
         if not source_uri:
+            _record_failure(context, ValueError(
+                "the catalog returned no source location for this dataset"))
             raise ValueError(
                 "the catalog returned no source location for this dataset; "
                 "there is nothing to download from"
@@ -87,9 +111,11 @@ def acquire_dataset_endpoint():
                 # here, by the process doing the writing, because the answer differs
                 # between this container and the machine that configured it.
                 connection_details=endpoint.get("dest_connection_details"),
+                connection_type=endpoint.get("dest_connection_type"),
                 max_files=int(cfg.get("max_files") or DEFAULT_MAX_FILES),
             )
         except (UnsupportedDestination, TransferRefused) as exc:
+            _record_failure(context, exc)
             # Permanent, so do not retry: a destination kind with no implementation will
             # not have one two minutes from now. Retrying it only delays the failure
             # report by the full retry budget -- four minutes of an endpoint sitting
@@ -104,9 +130,15 @@ def acquire_dataset_endpoint():
         cb = CatalogCallback(cfg["catalog_url"], cfg["trace_id"])
         run_id = context["dag_run"].run_id if context.get("dag_run") else None
         if result is None:
+            # The reason the transfer left behind, rather than the fact that it left
+            # nothing behind. "destination kind 's3' is not implemented" is actionable;
+            # "did not complete" sends the reader to the Airflow logs to find out what
+            # the run already knew.
+            failure = _read_failure(context)
             return cb.report_sync(
                 cfg["endpoint_id"], "FAILED",
-                error={"detail": "acquisition task did not complete"}, wf_ref_id=run_id,
+                error=failure or {"detail": "acquisition task did not complete"},
+                wf_ref_id=run_id,
             )
         return cb.report_sync(
             cfg["endpoint_id"], "COMPLETED",

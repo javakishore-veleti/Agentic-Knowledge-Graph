@@ -2,7 +2,12 @@
 # scheduler never becomes the bottleneck (PRD A 9.2).
 services:
   airflow:
-    image: apache/airflow:2.10.2-python3.12
+    # Built locally: the acquisition DAG uploads to S3, Blob storage and GCS, and the
+    # stock image carries none of those SDKs.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: akg-airflow:2.10.2
     container_name: akg-airflow
     # standalone also creates the admin user, but with a RANDOM password written inside
     # the container. Setting it here gives the middleware credentials it can hold in

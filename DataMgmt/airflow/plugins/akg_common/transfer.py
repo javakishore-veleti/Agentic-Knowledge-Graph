@@ -17,8 +17,11 @@ import os
 import re
 import urllib.parse
 import urllib.request
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+from .destinations import WRITERS, DestinationError
 
 log = logging.getLogger(__name__)
 
@@ -123,22 +126,57 @@ def download(
     dest_kind: str,
     *,
     connection_details: dict | None = None,
+    connection_type: str | None = None,
     max_files: int = DEFAULT_MAX_FILES,
     max_bytes: int = DEFAULT_MAX_BYTES,
 ) -> TransferResult:
     """Copy from `source_uri` into `dest_uri`, returning what was actually written."""
-    if dest_kind != "local_fs":
+    scheme = urllib.parse.urlparse(source_uri).scheme.lower()
+
+    if dest_kind == "local_fs":
+        dest = local_path(dest_uri, connection_details)
+        dest.mkdir(parents=True, exist_ok=True)
+        log.info("writing into %s", dest)
+        return _fetch(scheme, source_uri, dest, max_files, max_bytes)
+
+    writer = WRITERS.get(dest_kind)
+    if writer is None:
         raise UnsupportedDestination(
-            f"destination kind {dest_kind!r} is not implemented yet; only local_fs is. "
-            f"The endpoint stays unavailable rather than being marked available with "
-            f"nothing behind it."
+            f"destination kind {dest_kind!r} is not implemented. The endpoint stays "
+            f"unavailable rather than being marked available with nothing behind it."
         )
 
-    dest = local_path(dest_uri, connection_details)
-    dest.mkdir(parents=True, exist_ok=True)
-    log.info("writing into %s", dest)
+    # Every destination acquires FRESH FROM THE SOURCE -- a cloud copy is never derived
+    # from the local one. So the bytes are staged in a temp directory for the length of
+    # this run and uploaded from there, rather than being read out of some other
+    # endpoint whose state this run does not control.
+    #
+    # TemporaryDirectory, so a failed upload leaves nothing behind on the worker: these
+    # are whole corpora, and a scheduler that fills its own disk with abandoned staging
+    # copies takes every other workflow down with it.
+    with tempfile.TemporaryDirectory(prefix="akg-acquire-") as tmp:
+        staged = Path(tmp)
+        result = _fetch(scheme, source_uri, staged, max_files, max_bytes)
+        if not result.files:
+            return result
 
-    scheme = urllib.parse.urlparse(source_uri).scheme.lower()
+        details = dict(connection_details or {})
+        # The writers branch on how to authenticate, which is a property of the endpoint
+        # rather than of its details blob. Passed under a reserved key so it cannot
+        # collide with a configured value.
+        details["__connection_type"] = connection_type or ""
+        try:
+            total, written = writer(
+                dest_uri, details, ((n, staged / n) for n in result.files))
+        except DestinationError as exc:
+            raise UnsupportedDestination(str(exc)) from exc
+
+        return TransferResult(bytes=total, object_count=written, files=result.files)
+
+
+def _fetch(scheme: str, source_uri: str, dest: Path, max_files: int,
+           max_bytes: int) -> TransferResult:
+    """Pull from the source into a real directory."""
     if scheme == "ftp":
         return _from_ftp(source_uri, dest, max_files, max_bytes)
     if scheme in {"http", "https"}:
