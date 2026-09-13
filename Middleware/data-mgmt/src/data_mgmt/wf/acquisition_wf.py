@@ -6,7 +6,7 @@ from akg_service_core import ITask, IWorkflow
 
 from ..tasks.acquisition_tasks import (
     BuildAcquireRespTask, BuildStatusRespTask, ClaimEndpointTask, FetchStatusTask,
-    MintExecIdTask, TriggerAirflowTask,
+    MintExecIdTask, TriggerWorkflowTask,
 )
 
 
@@ -21,7 +21,7 @@ class AcquireDatasetWf(IWorkflow):
 
     def __init__(self) -> None:
         self._tasks: tuple[ITask, ...] = (
-            MintExecIdTask(), ClaimEndpointTask(), TriggerAirflowTask(),
+            MintExecIdTask(), ClaimEndpointTask(), TriggerWorkflowTask(),
             BuildAcquireRespTask(),
         )
 

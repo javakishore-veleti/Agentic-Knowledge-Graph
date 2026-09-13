@@ -17,12 +17,13 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 RUN_DIR="$REPO_ROOT/.local-run"
 mkdir -p "$RUN_DIR"
 
-SERVICES="data-catalog data-mgmt"
+SERVICES="data-catalog data-mgmt orchestrator"
 
 port_of() {
   case "$1" in
     data-catalog) echo 9001 ;;
     data-mgmt)    echo 9002 ;;
+    orchestrator) echo 9005 ;;
     *) echo "unknown service: $1" >&2; return 1 ;;
   esac
 }
@@ -31,6 +32,7 @@ path_of() {
   case "$1" in
     data-catalog) echo "$REPO_ROOT/Middleware/data-catalog" ;;
     data-mgmt)    echo "$REPO_ROOT/Middleware/data-mgmt" ;;
+    orchestrator) echo "$REPO_ROOT/Middleware/orchestrator" ;;
     *) echo "unknown service: $1" >&2; return 1 ;;
   esac
 }
@@ -39,6 +41,7 @@ module_of() {
   case "$1" in
     data-catalog) echo "data_catalog.app:app" ;;
     data-mgmt)    echo "data_mgmt.app:app" ;;
+    orchestrator) echo "orchestrator.app:app" ;;
     *) echo "unknown service: $1" >&2; return 1 ;;
   esac
 }
@@ -47,6 +50,8 @@ module_of() {
 deps_of() {
   case "$1" in
     data-catalog) echo "--with sqlalchemy>=2.0 --with psycopg[binary]>=3.2" ;;
+    # The orchestrator owns orch.wf_run, so it needs a driver too.
+    orchestrator) echo "--with sqlalchemy>=2.0 --with psycopg[binary]>=3.2" ;;
     *) echo "" ;;
   esac
 }

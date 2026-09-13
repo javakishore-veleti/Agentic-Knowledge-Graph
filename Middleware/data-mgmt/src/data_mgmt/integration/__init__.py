@@ -1,5 +1,5 @@
 """Clients for other services (ADR-010)."""
 
-from .i_clients import IAirflowClient, ICatalogClient
+from .i_clients import ICatalogClient, IOrchestratorClient
 
-__all__ = ["IAirflowClient", "ICatalogClient"]
+__all__ = ["ICatalogClient", "IOrchestratorClient"]

@@ -1,4 +1,4 @@
-"""Data management API entry point."""
+"""Orchestrator API entry point."""
 
 from __future__ import annotations
 
@@ -10,26 +10,24 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .api import acquisition_router
+from .api import run_router
 from .bootstrap import register_all
 from .config import settings
-from .integration.i_clients import ICatalogClient, IOrchestratorClient
+from .service.i_run_service import IRunService
 
 app = FastAPI(
-    title="AKG Data Management",
+    title="AKG Orchestrator",
     version="0.1.0",
     description=(
-        "Acquires datasets from their source into a destination by asking the "
-        "orchestrator to run a workflow. Holds no database: the catalog owns dataset "
-        "state, the orchestrator owns "
-        "execution, and the DAG reports back to the catalog itself."
+        "One contract over every workflow engine. Callers name a workflow and an engine "
+        "and read back one vocabulary of run states; Airflow's auth scheme, URL layout "
+        "and state names stay inside its adapter."
     ),
 )
 
 register_all()
 
-# Named origins, never "*": this API starts workflows, so any site a developer happens to
-# visit must not be able to call it from their browser.
+# Named origins only: this API starts workflows.
 _origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 if _origins:
     app.add_middleware(
@@ -72,21 +70,18 @@ async def service_error_handler(request: Request, exc: ServiceError) -> JSONResp
 
 @app.get("/health", tags=["ops"])
 def health() -> dict:
-    """Reports its dependencies honestly.
+    """Reports each engine separately.
 
-    This service can answer while the orchestrator is down; it just cannot start anything. Saying
-    so is more useful than a bare 200.
+    A single boolean would hide the case this service exists to make visible: Airflow
+    answering /health while refusing every API call.
     """
-    catalog_ok = SERVICE_FACTORY.get(ICatalogClient).available()
-    orchestrator_ok = SERVICE_FACTORY.get(IOrchestratorClient).available()
+    engines = SERVICE_FACTORY.get(IRunService).engines()
     return {
-        "status": "ok" if (catalog_ok and orchestrator_ok) else "degraded",
+        "status": "ok" if all(e.available for e in engines.items) else "degraded",
         "env": settings.env,
-        "catalog": catalog_ok,
-        "orchestrator": orchestrator_ok,
-        "workflow": settings.acquisition_workflow_ref,
-        "engine": settings.acquisition_engine,
+        "engines": {e.engine: {"available": e.available, "detail": e.detail}
+                    for e in engines.items},
     }
 
 
-app.include_router(acquisition_router)
+app.include_router(run_router)

@@ -21,26 +21,17 @@ class Settings(BaseSettings):
 
     catalog_url: str = "http://localhost:9001"
 
-    # Airflow's stable REST API.
-    airflow_url: str = "http://localhost:8080"
-    airflow_user: str = "admin"
-    # Local only. In Azure this arrives from Key Vault via the container environment.
-    airflow_password: str = ""
-    airflow_timeout_seconds: float = 10.0
+    #: The orchestrator runs workflows on this service's behalf. Airflow's URL,
+    #: credentials and API version live there, not here.
+    orchestrator_url: str = "http://localhost:9005"
+    orchestrator_timeout_seconds: float = 10.0
 
-    #: Where Airflow should call back. Must be reachable FROM the Airflow container, which
-    #: is not the same as reachable from this process.
-    #:
-    #: The default is host.docker.internal because in local development Airflow runs in a
-    #: container while data-catalog runs on the host: a Compose service name does not
-    #: resolve across that boundary, and the DAG failed on its first callback with a name
-    #: lookup error that said nothing about why. Deployments where both sides are
-    #: containers override this with the service name via AKG_CATALOG_CALLBACK_URL.
-    catalog_callback_url: str = "http://host.docker.internal:9001"
-
-    acquisition_dag_id: str = "data_mgmt.acquisition.acquire_dataset_endpoint"
-    export_dag_id: str = "data_mgmt.exports.export_dataset_endpoint"
-    import_dag_id: str = "data_mgmt.imports.import_external_dataset"
+    #: Which engine runs acquisition, and what to run on it. Both are configuration:
+    #: moving acquisition to Step Functions is an env var, not a code change here.
+    acquisition_engine: str = "airflow"
+    acquisition_workflow_ref: str = "data_mgmt.acquisition.acquire_dataset_endpoint"
+    export_workflow_ref: str = "data_mgmt.exports.export_dataset_endpoint"
+    import_workflow_ref: str = "data_mgmt.imports.import_external_dataset"
 
 
 settings = Settings()

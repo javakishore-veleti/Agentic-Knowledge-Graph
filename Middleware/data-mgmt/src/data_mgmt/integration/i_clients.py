@@ -1,6 +1,6 @@
 """Clients for the services this one depends on (ADR-010).
 
-data-mgmt owns no database. The catalog owns dataset state; Airflow owns execution. This
+data-mgmt owns no database. The catalog owns dataset state; the orchestrator owns execution. This
 service decides whether an acquisition should start and gets it started.
 """
 
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, NamedTuple
 
 
 class ICatalogClient(ABC):
@@ -37,19 +37,36 @@ class ICatalogClient(ABC):
     def available(self) -> bool: ...
 
 
-class IAirflowClient(ABC):
-    @abstractmethod
-    def trigger(
-        self, dag_id: str, dag_run_id: str, conf: dict[str, Any], trace_id: str
-    ) -> str | None:
-        """Start a DAG run and return immediately with its id.
+class RunHandle(NamedTuple):
+    run_id: str | None
+    state: str
+    #: False when no run is in flight. `reason` says why, and the caller must release
+    #: whatever it claimed -- a claim held for a run that never started is the endpoint
+    #: stuck RUNNING until a sweeper notices.
+    accepted: bool
+    reason: str
 
-        Asynchronous by contract: this never waits for the DAG. The run reports its own
-        outcome by calling the catalog back.
+
+class IOrchestratorClient(ABC):
+    """Workflow execution, engine-neutral.
+
+    Deliberately says nothing about DAGs. An implementation may run the work on Airflow,
+    Step Functions or anything else; this service is not entitled to know which.
+    """
+
+    @abstractmethod
+    def start(self, engine: str, workflow_ref: str, run_key: str,
+              conf: dict[str, Any], caller_ref: dict[str, Any],
+              trace_id: str) -> "RunHandle | None":
+        """Start a run and return immediately.
+
+        Asynchronous by contract: never waits. The run reports its own outcome by calling
+        the catalog back. `run_key` makes a retried submission return the same run rather
+        than starting a second one.
         """
 
     @abstractmethod
-    def run_state(self, dag_id: str, dag_run_id: str) -> str | None: ...
+    def state(self, run_id: str, trace_id: str) -> str | None: ...
 
     @abstractmethod
     def available(self) -> bool: ...
