@@ -17,34 +17,11 @@ CREATE TABLE IF NOT EXISTS catalog.purpose (
     CONSTRAINT purpose_code_ck CHECK (purpose_code ~ '^[a-z0-9][a-z0-9_]{1,46}$')
 );
 
-INSERT INTO catalog.purpose (purpose_code, name, description, sort_order, is_system) VALUES
-    ('initial_dataset_load', 'Initial dataset loading',
-     'First acquisition of a dataset from its source into a destination', 10, true),
-    ('incremental_load', 'Incremental load',
-     'Deltas since the last acquisition rather than the whole corpus', 20, true),
-    ('parsing', 'Parsing',
-     'Turn acquired files into columnar tables', 30, true),
-    ('ontology_linking', 'Ontology linking',
-     'Resolve text to stable concept identifiers', 40, true),
-    ('graph_build', 'Graph build',
-     'Construct the CSR graph from publisher-supplied edges', 50, true),
-    ('indexing', 'Indexing',
-     'Embed and consolidate shards into one pinnable index', 60, true),
-    ('validation', 'Validation',
-     'Alignment asserts and independent recounts against the source', 70, true),
-    ('calibration', 'Calibration',
-     'Fit the abstention threshold on the held-out dev split', 80, true),
-    ('evaluation', 'Evaluation',
-     'Run the reference arms and the promotion gate', 90, true),
-    ('retraction', 'Retraction handling',
-     'Flag retracted documents so they drop out of citations', 100, true),
-    ('export', 'Export',
-     'Publish a curated copy for downstream consumers', 110, true),
-    ('reconciliation', 'Reconciliation',
-     'Recount caches against their source of truth', 120, true),
-    ('maintenance', 'Maintenance',
-     'Housekeeping: release stuck runs, vacuum, prune', 130, true)
-ON CONFLICT (purpose_code) DO NOTHING;
+-- Schema only. Rows arrive through Administration -> Initial Data, so a fresh
+-- database is genuinely empty and an administrator can see what loading did.
+-- Keeping INSERTs here also broke migration ordering: this file inserted rows that
+-- a later migration gave a NOT NULL column, so it could not be applied after it.
+
 
 -- System purposes are referenced by shipped workflows; deleting one would orphan them.
 CREATE OR REPLACE FUNCTION catalog.protect_system_purposes()

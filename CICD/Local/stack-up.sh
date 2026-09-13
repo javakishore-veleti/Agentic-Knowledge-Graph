@@ -35,36 +35,7 @@ done
 echo " ready"
 
 echo "==> migrations"
-# Applied exactly once each, tracked in catalog.schema_migrations (ADR-020). Re-running
-# the whole set every start forces every migration to stay compatible with every later
-# one, which stops being true the moment one adds a NOT NULL column to a table an earlier
-# one inserts into.
-docker exec -i "$PG_CONTAINER" psql -U akg -d akg -q -v ON_ERROR_STOP=1 \
-  < "$HERE/Postgres/init/000-migrations.sql" >/dev/null
-
-applied=0
-skipped=0
-for f in "$HERE"/Postgres/init/*.sql; do
-  name="$(basename "$f")"
-  [ "$name" = "000-migrations.sql" ] && continue
-  already="$(docker exec -i "$PG_CONTAINER" psql -U akg -d akg -tAq \
-    -c "SELECT 1 FROM catalog.schema_migrations WHERE filename = '$name'" 2>/dev/null || true)"
-  if [ "$already" = "1" ]; then
-    skipped=$((skipped + 1))
-    continue
-  fi
-  if ! docker exec -i "$PG_CONTAINER" psql -U akg -d akg -q -v ON_ERROR_STOP=1 < "$f" >/dev/null; then
-    echo "!!  $name failed; the database is left as the migration found it" >&2
-    docker exec -i "$PG_CONTAINER" psql -U akg -d akg -v ON_ERROR_STOP=1 < "$f" 2>&1 \
-      | grep -i "^ERROR" | head -3 | sed 's/^/      /' >&2
-    exit 1
-  fi
-  docker exec -i "$PG_CONTAINER" psql -U akg -d akg -q \
-    -c "INSERT INTO catalog.schema_migrations (filename) VALUES ('$name') ON CONFLICT DO NOTHING" >/dev/null
-  applied=$((applied + 1))
-  echo "    applied $name"
-done
-echo "    $applied applied, $skipped already present"
+"$HERE/db-apply-migrations.sh"
 
 echo "==> DataCatalog API on :${API_PORT}"
 if curl -fsS -o /dev/null "http://localhost:${API_PORT}/health" 2>/dev/null; then

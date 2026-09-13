@@ -40,7 +40,12 @@ ALTER TABLE catalog.app_endpoint
 
 -- Endpoints that declare no configuration at all. Fine for a plain HTTP source; a problem
 -- for anything needing credentials, because it will fail at connect time rather than here.
-CREATE OR REPLACE VIEW catalog.app_endpoint_unconfigured AS
+-- 009 later changes this view's column list, and CREATE OR REPLACE cannot drop or
+-- reorder columns. Dropping first makes this migration safe whatever shape the
+-- view happens to be in -- which matters on a database that has been partially
+-- migrated by an earlier attempt.
+DROP VIEW IF EXISTS catalog.app_endpoint_unconfigured;
+CREATE VIEW catalog.app_endpoint_unconfigured AS
 SELECT app_endpoint_id, code, tech_stack, env
 FROM catalog.app_endpoint
 WHERE is_active AND config_env = '{}'::jsonb

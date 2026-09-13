@@ -51,7 +51,10 @@ COMMENT ON COLUMN catalog.app_endpoint.auth_ref IS
     'Never a secret.';
 
 -- Endpoints whose mode needs configuration but declare none.
-CREATE OR REPLACE VIEW catalog.app_endpoint_unconfigured AS
+-- 008 created this view with a different column list, and CREATE OR REPLACE
+-- cannot drop or reorder columns. This migration owns the new shape.
+DROP VIEW IF EXISTS catalog.app_endpoint_unconfigured;
+CREATE VIEW catalog.app_endpoint_unconfigured AS
 SELECT app_endpoint_id, code, tech_stack, env, auth_mode, auth_ref
 FROM catalog.app_endpoint
 WHERE is_active

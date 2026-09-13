@@ -5,6 +5,12 @@
 # `mw-start-all.sh | tail` appears to hang even though the services are up.
 . "$(dirname "${BASH_SOURCE[0]}")/_services.sh"
 
+# Schema first: a schema change ships with the code change that needs it, so starting the
+# services is the natural moment to apply it rather than a separate step to remember.
+echo "==> schema"
+"$REPO_ROOT/CICD/Local/db-apply-migrations.sh"
+
+
 for svc in $SERVICES; do
   port="$(port_of "$svc")"
 

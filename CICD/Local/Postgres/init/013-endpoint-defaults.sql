@@ -24,14 +24,8 @@ ALTER TABLE catalog.app_endpoint DROP CONSTRAINT IF EXISTS app_endpoint_defaults
 ALTER TABLE catalog.app_endpoint ADD CONSTRAINT app_endpoint_defaults_no_secrets_ck
     CHECK (catalog.defaults_hold_no_secrets(connection_details));
 
--- The local filesystem now works out of the box.
-UPDATE catalog.app_endpoint
-   SET connection_details = connection_details
-        || jsonb_build_object('defaults',
-             jsonb_build_object('root', '~/runtime_data/AKG/Local/FileSystem')),
-       description = 'Files on the machine running the code. Defaults to '
-                     '~/runtime_data/AKG/Local/FileSystem when AKG_LOCAL_DATA_ROOT is unset.'
- WHERE code = 'local-fs';
+-- The local filesystem default is applied when the endpoint is seeded: there is no
+-- row to update on a fresh database.
 
 -- Users add their own filesystem locations with whatever path they want. These are not
 -- system endpoints: they are created, edited and deleted freely, and they declare their
@@ -57,20 +51,4 @@ ALTER TABLE catalog.app_endpoint DROP CONSTRAINT IF EXISTS app_endpoint_local_fs
 ALTER TABLE catalog.app_endpoint ADD CONSTRAINT app_endpoint_local_fs_root_ck
     CHECK (catalog.local_fs_has_root(connection_details, provider_service));
 
--- Two examples of user-defined filesystem endpoints, showing both styles.
-INSERT INTO catalog.app_endpoint
-    (app_endpoint_id, code, name, description, tech_stack, provider, provider_service,
-     connection_type, connection_details, env, host, is_system, tenant_id)
-VALUES
-    ('00000000-0000-4000-8000-000000000031', 'local-fs-scratch',
-     'Local scratch space', 'A second local path, defined by the user',
-     'local_fs', 'local', 'filesystem', 'anonymous',
-     '{"root": "~/runtime_data/AKG/Local/Scratch"}'::jsonb,
-     'local', 'localhost', false, 'reference'),
-    ('00000000-0000-4000-8000-000000000032', 'nas-corpus',
-     'NAS corpus mount', 'An on-premises mount, path supplied per machine',
-     'file_server', 'on_prem', 'filesystem', 'anonymous',
-     '{"env": {"root": "AKG_NAS_CORPUS_ROOT"},
-       "defaults": {"root": "/mnt/nas/corpus"}}'::jsonb,
-     'local', 'files.internal', false, 'reference')
-ON CONFLICT (app_endpoint_id) DO NOTHING;
+-- Example endpoints load through Administration, not here.
