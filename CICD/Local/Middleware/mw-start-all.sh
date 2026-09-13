@@ -28,7 +28,10 @@ for svc in $SERVICES; do
   log="$(log_file "$svc")"
   # </dev/null so the child does not inherit the caller's stdin and hold it open.
   ( cd "$(path_of "$svc")" \
-    && AKG_DATABASE_URL="$(db_url)" exec nohup uv run \
+    && AKG_DATABASE_URL="$(db_url)" \
+       AKG_AIRFLOW_USER="$(airflow_user)" \
+       AKG_AIRFLOW_PASSWORD="$(airflow_password)" \
+       exec nohup uv run \
          --with 'fastapi>=0.115' --with 'uvicorn[standard]>=0.32' \
          --with 'pydantic-settings>=2.6' --with 'httpx>=0.27' \
          $(deps_of "$svc") --python 3.13 \

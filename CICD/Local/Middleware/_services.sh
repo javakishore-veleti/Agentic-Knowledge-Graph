@@ -77,3 +77,22 @@ svc_pid() {
 db_url() {
   echo "${AKG_DATABASE_URL:-postgresql+psycopg://akg:akg-local-only@localhost:${AKG_PG_PORT:-5432}/akg}"
 }
+
+# Airflow credentials for the services that trigger DAGs. Read from the same CICD/Local
+# .env the Airflow container is started with, so the two cannot drift: a mismatch shows
+# up as "airflow_unavailable" in the portal, which says nothing about a wrong password.
+airflow_user() {
+  echo "${AKG_AIRFLOW_USER:-$(env_value AIRFLOW_USER admin)}"
+}
+airflow_password() {
+  echo "${AKG_AIRFLOW_PASSWORD:-$(env_value AIRFLOW_PASSWORD akg-local-only)}"
+}
+
+# One key out of CICD/Local/.env, falling back to a default. Deliberately not `source`:
+# that file is compose syntax and sourcing it would export every unrelated key into the
+# service environment.
+env_value() {
+  local key="$1" fallback="$2" line
+  line="$(grep -E "^${key}=" "$REPO_ROOT/CICD/Local/.env" 2>/dev/null | tail -1 || true)"
+  if [ -n "$line" ]; then echo "${line#*=}"; else echo "$fallback"; fi
+}

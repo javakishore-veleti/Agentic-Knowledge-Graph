@@ -4,13 +4,30 @@ services:
   airflow:
     image: apache/airflow:2.10.2-python3.12
     container_name: akg-airflow
-    command: standalone
+    # standalone also creates the admin user, but with a RANDOM password written inside
+    # the container. Setting it here gives the middleware credentials it can hold in
+    # config. create-or-reset because the metadata DB lives in Postgres and outlives the
+    # container: after the first run the user already exists and create is a no-op.
+    command: >
+      bash -c "airflow db migrate &&
+      airflow users create --username admin --password akg-local-only --firstname AKG --lastname Local --role Admin --email admin@akg.local || true;
+      airflow users reset-password --username admin --password akg-local-only || true;
+      airflow standalone"
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: >-
         postgresql+psycopg2://${POSTGRES_USER:-akg}:${POSTGRES_PASSWORD:-akg-local-only}@akg-postgres:5432/${POSTGRES_DB:-akg}
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      # The REST API ships with the session backend only, which is for the browser UI:
+      # a service calling /api/v1 with basic auth gets 403 no matter what credentials it
+      # sends. The middleware triggers DAGs over that API, so basic_auth is required --
+      # this was the whole reason Acquire reported airflow_unavailable while /health,
+      # which needs no auth at all, answered 200.
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USER:-admin}
+      # Local only. In Azure this comes from Key Vault via the container environment.
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD:-akg-local-only}
       AKG_ENV: local
     ports: ["${AIRFLOW_PORT:-8080}:8080"]
     volumes:
